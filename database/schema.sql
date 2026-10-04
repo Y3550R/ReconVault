@@ -187,6 +187,31 @@ CREATE TABLE `finding_services` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
+-- SCANS (must be before CONTRIBUTORS for FK)
+-- ============================================================
+
+CREATE TABLE `scans` (
+    `scan_id` INT NOT NULL AUTO_INCREMENT,
+    `engagement_id` INT NOT NULL,
+    `creator_user_id` INT NOT NULL,
+    `runner_user_id` INT,
+    `canceller_user_id` INT,
+    `scan_type` ENUM('HOST', 'PORT') NOT NULL DEFAULT 'PORT',
+    `status` ENUM('READY', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'READY',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `started_at` DATETIME,
+    `finished_at` DATETIME,
+    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    PRIMARY KEY (`scan_id`),
+    FOREIGN KEY (`engagement_id`) REFERENCES `engagements`(`engagement_id`) ON DELETE CASCADE,
+    FOREIGN KEY (`creator_user_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
+    FOREIGN KEY (`runner_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
+    FOREIGN KEY (`canceller_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
+    INDEX `idx_scans_engagement` (`engagement_id`),
+    INDEX `idx_scans_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
 -- CONTRIBUTORS (Polymorphic: PENTESTER or SCAN)
 -- ============================================================
 
@@ -198,10 +223,6 @@ CREATE TABLE `contributors` (
     PRIMARY KEY (`contributor_id`),
     FOREIGN KEY (`user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
     FOREIGN KEY (`scan_id`) REFERENCES `scans`(`scan_id`) ON DELETE SET NULL,
-    CONSTRAINT `chk_contributor_polymorphic` CHECK (
-        (`contributor_type` = 'PENTESTER' AND `user_id` IS NOT NULL AND `scan_id` IS NULL)
-        OR (`contributor_type` = 'SCAN' AND `scan_id` IS NOT NULL AND `user_id` IS NULL)
-    ),
     INDEX `idx_contributors_type_user` (`contributor_type`, `user_id`),
     INDEX `idx_contributors_type_scan` (`contributor_type`, `scan_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -228,31 +249,6 @@ CREATE TABLE `finding_contributors` (
     PRIMARY KEY (`contributor_id`, `finding_id`),
     FOREIGN KEY (`contributor_id`) REFERENCES `contributors`(`contributor_id`) ON DELETE CASCADE,
     FOREIGN KEY (`finding_id`) REFERENCES `findings`(`finding_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- ============================================================
--- SCANS
--- ============================================================
-
-CREATE TABLE `scans` (
-    `scan_id` INT NOT NULL AUTO_INCREMENT,
-    `engagement_id` INT NOT NULL,
-    `creator_user_id` INT NOT NULL,
-    `runner_user_id` INT,
-    `canceller_user_id` INT,
-    `scan_type` ENUM('HOST', 'PORT') NOT NULL DEFAULT 'PORT',
-    `status` ENUM('READY', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'READY',
-    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `started_at` DATETIME,
-    `finished_at` DATETIME,
-    `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-    PRIMARY KEY (`scan_id`),
-    FOREIGN KEY (`engagement_id`) REFERENCES `engagements`(`engagement_id`) ON DELETE CASCADE,
-    FOREIGN KEY (`creator_user_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
-    FOREIGN KEY (`runner_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
-    FOREIGN KEY (`canceller_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
-    INDEX `idx_scans_engagement` (`engagement_id`),
-    INDEX `idx_scans_status` (`status`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -315,10 +311,10 @@ FOR EACH ROW BEGIN
 END$$
 
 -- Scan finished_at on terminal status change
-CREATE TRIGGER `trg_scan_after_update` AFTER UPDATE ON `scans`
+CREATE TRIGGER `trg_scan_before_update` BEFORE UPDATE ON `scans`
 FOR EACH ROW BEGIN
     IF NEW.status IN ('COMPLETED', 'FAILED', 'CANCELLED') AND OLD.status NOT IN ('COMPLETED', 'FAILED', 'CANCELLED') THEN
-        UPDATE `scans` SET `finished_at` = NOW() WHERE `scan_id` = NEW.scan_id;
+        SET NEW.finished_at = NOW();
     END IF;
 END$$
 

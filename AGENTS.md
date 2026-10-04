@@ -76,25 +76,30 @@ PROTOCOL: TCP, UDP, SCTP, ICMP
 | Phase | Deliverable | Key Files |
 |-------|-------------|-----------|
 | **1** | Database schema + triggers + procedures | `database/schema.sql` |
-| **2** | Config + DB pool + session store | `src/config/index.js`, `src/config/database.js` |
-| **3** | Auth (login, logout, session, roles) | `src/middleware/auth.js`, `src/routes/auth.js` |
-| **4** | API routes (REST) | `src/routes/*.js` |
-| **5** | Scan engine (nmap wrapper) | `src/services/scanEngine.js` |
-| **6** | Frontend (static HTML/JS) | `public/*.html`, `public/js/*.js` |
-| **7** | Integration + manual testing | — |
+| **2** | Config + DB pool | `src/config/index.js`, `src/db.js` |
+| **3** | Middleware (auth, errorHandler) | `src/middleware/auth.js`, `src/middleware/errorHandler.js` |
+| **4** | Services (password, scanEngine) | `src/services/password.js`, `src/services/scanEngine.js` |
+| **5** | Utils (db helpers, validation) | `src/utils/db.js`, `src/utils/validation.js` |
+| **6** | Controllers (all 8) | `src/controllers/*.js` |
+| **7** | Routes (all 8) | `src/routes/*.js` |
+| **8** | App wiring | `src/app.js` |
+| **9** | Frontend (static HTML/JS) | `public/*.html`, `public/js/*.js` |
+| **10** | Package + env + test | `package.json`, `.env.example` |
 
 ### Directory Structure (Prototype)
 
 ```
 database/
-  schema.sql           # Full DDL (15 tables + triggers + procedures)
+  schema.sql           # Full DDL (19 tables + triggers + procedures)
 
 src/
+  app.js               # Express app, middleware stack, route mounting
+  db.js                # mysql2 pool + query/execute/transaction helpers
   config/
-    index.js           # dotenv config
-    database.js        # mysql2/promise pool
+    index.js           # dotenv, session config, argon2 params, nmap path
   middleware/
-    auth.js            # Session verify, role detection
+    auth.js            # attachUser, requireAuth, requireAdmin, requirePentester, requireEngagementAccess
+    errorHandler.js    # centralized error responses
   routes/
     auth.js            # POST /api/login, POST /api/logout, GET /api/me
     engagements.js     # CRUD /api/engagements
@@ -105,17 +110,30 @@ src/
     admin/
       users.js         # /api/admin/users
       organizations.js # /api/admin/organizations
+  controllers/
+    authController.js
+    engagementController.js
+    targetController.js
+    serviceController.js
+    findingController.js
+    scanController.js
+    adminUserController.js
+    adminOrgController.js
   services/
-    scanEngine.js      # nmap spawn, parse XML/JSON output
+    scanEngine.js      # nmap spawn, parse XML, return structured data
+    password.js        # hashPassword, verifyPassword (argon2)
+  utils/
+    db.js              # pagination, buildWhere, buildOrderBy, etc.
+    validation.js      # basic validators (IP, port, enums, CIDR)
 
 public/
-  index.html           # Login page
+  index.html           # Login
   dashboard.html       # Engagement list
-  engagement.html      # Engagement detail (tabs: targets, services, findings, scans)
+  engagement.html      # Engagement detail (tabs)
   admin.html           # Admin panel
-  css/style.css        # Minimal styling
-  js/api.js            # fetch() wrapper
-  js/*.js              # Page-specific logic
+  css/style.css
+  js/api.js            # fetch wrapper
+  js/*.js              # Page logic
 
 .env.example
 package.json
@@ -133,7 +151,27 @@ AGENTS.md
 - **Engagement access** — middleware verifies membership
 - **Hard delete only**
 - **No input validation library** — trust prepared statements + basic checks
-- **nmap check at startup** — `which nmap` or spawn `nmap --version`
+
+### Database Conventions
+- **Use dedicated DB user** — `reconvault` (not root). Configured in `.env`.
+- **No fallback defaults in `db.js`** — throws on missing config.
+- **MariaDB on port 3315** — isolated from other MariaDB instances on the system.
+- **Data dir in `/tmp/mariadb-data`** — ephemeral, recreated on startup.
+
+### Environment & Security
+- **`.env` for secrets** — never committed (in `.gitignore`).
+- **`.gitignore`** — excludes `.env`, `node_modules`, MariaDB data, logs.
+- **Tests in `tests/`** — `npm test` runs `tests/db_test.js`.
+
+### Startup Script
+- **`run.sh`** — starts MariaDB, configures users, starts app, cleans up on exit.
+- **Never use other MariaDB ports** or directories outside project.
+
+### Binary Path Convention
+- **No PATH lookups** — all binaries use explicit full paths.
+- **Configurable via env** — `MARIADB_BIN`, `MARIADBD_BIN`, `MARIADB_INSTALL_DB_BIN`, `NODE_BIN`, `NPM_BIN`, `CURL_BIN`.
+- **Defaults** — `/usr/bin/mariadb`, `/usr/bin/mariadbd`, `/usr/bin/mariadb-install-db`, `/usr/bin/node`, `/usr/bin/npm`, `/usr/bin/curl`.
+- **Validation** — script checks executables exist and are executable before starting.
 
 ---
 
@@ -142,7 +180,9 @@ AGENTS.md
 ```bash
 npm install              # install deps
 npm run dev              # nodemon src/server.js (or node --watch)
-# Database: manually run schema.sql in MariaDB/MySQL
+npm test                 # run tests (tests/db_test.js)
+./run.sh                 # start everything (MariaDB + app)
+# Database: mariadb --protocol=tcp --port=3315 -u reconvault -p
 ```
 
 ---
@@ -154,7 +194,6 @@ npm run dev              # nodemon src/server.js (or node --watch)
 - **Contributor triggers** — use `@current_user_id` session variable (set in app before write)
 - **Scan status machine** — `READY → RUNNING → COMPLETED/FAILED/CANCELLED` (linear)
 - **Scans only run when engagement = ACTIVE**
-- **nmap binary required** — check at startup, graceful degradation
 - **No migrations tool** — apply `schema.sql` manually for prototype
 
 ---

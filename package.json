@@ -1,0 +1,28 @@
+{
+  "name": "reconvault",
+  "version": "0.1.0",
+  "description": "Offensive Security Reconnaissance Asset Manager (Prototype)",
+  "main": "src/server.js",
+  "type": "module",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "scripts": {
+    "dev": "node --watch src/server.js",
+    "start": "node src/server.js",
+    "test": "node tests/db_test.js",
+    "db:setup": "mariadb --protocol=tcp --port=3315 -u reconvault -p\"${DB_PASSWORD}\" < database/schema.sql"
+  },
+  "license": "MIT",
+  "dependencies": {
+    "express": "^4.19.2",
+    "mysql2": "^3.11.0",
+    "argon2": "^0.41.1",
+    "express-session": "^1.18.0",
+    "express-mysql-session": "^3.0.3",
+    "dotenv": "^16.4.5"
+  },
+  "allowScripts": {
+    "argon2@0.41.1": true
+  }
+}

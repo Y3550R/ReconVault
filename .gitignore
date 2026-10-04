@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Environment / Secrets
+.env
+.env.local
+.env.production
+
+# Database
+database/*.sql~
+*.sqlite
+*.db
+
+# MariaDB data directory (if using local)
+/tmp/mariadb-data/
+/tmp/mariadb.sock
+/tmp/mariadb.log
+
+# Logs
+logs/
+*.log
+
+# Testing
+coverage/
+.nyc_output/
+
+# IDE/Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build/Output
+dist/
+build/
+
+# Temporary
+tmp/
+temp/
+*.tmp
+
+# SSL/TLS
+*.pem
+*.key
+*.crt
+*.p12
