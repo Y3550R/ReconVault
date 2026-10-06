@@ -12,6 +12,8 @@
     "start": "node src/server.js",
     "test": "node tests/db_test.js",
     "test:middleware": "node tests/middleware_test.js",
+    "test:services": "node tests/services/password_test.js",
+    "test:utils": "node tests/utils/validation_test.js",
     "db:setup": "mariadb --protocol=tcp --port=3315 -u reconvault -p\"${DB_PASSWORD}\" < database/schema.sql"
   },
   "license": "MIT",
