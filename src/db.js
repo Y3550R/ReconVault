@@ -21,7 +21,7 @@ export function createPool(config) {
     queueLimit: 0,
     enableKeepAlive: true,
     keepAliveInitialDelay: 0,
-    timezone: "Z",
+    timezone: "+07:00",
     dateStrings: true,
   });
 

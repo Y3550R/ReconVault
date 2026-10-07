@@ -164,8 +164,9 @@ AGENTS.md
 - **Tests in `tests/`** — `npm test` runs `tests/db_test.js`.
 
 ### Startup Script
-- **`run.sh`** — starts MariaDB, configures users, starts app, cleans up on exit.
+- **`runServer_test.sh`** — starts MariaDB, configures users, starts app, cleans up on exit.
 - **Never use other MariaDB ports** or directories outside project.
+- **Never run `mariadbd` directly** — always use `./runServer_test.sh` which handles database lifecycle, user creation, and cleanup.
 
 ### Binary Path Convention
 - **No PATH lookups** — all binaries use explicit full paths.
@@ -181,8 +182,7 @@ AGENTS.md
 npm install              # install deps
 npm run dev              # nodemon src/server.js (or node --watch)
 npm test                 # run tests (tests/db_test.js)
-./run.sh                 # start everything (MariaDB + app)
-# Database: mariadb --protocol=tcp --port=3315 -u reconvault -p
+./runServer_test.sh      # starts the test server (MariaDB + app)
 ```
 
 ---
@@ -194,7 +194,6 @@ npm test                 # run tests (tests/db_test.js)
 - **Contributor triggers** — use `@current_user_id` session variable (set in app before write)
 - **Scan status machine** — `READY → RUNNING → COMPLETED/FAILED/CANCELLED` (linear)
 - **Scans only run when engagement = ACTIVE**
-- **No migrations tool** — apply `schema.sql` manually for prototype
 
 ---
 

@@ -305,14 +305,15 @@ async function runTests() {
   }
 
   // Cleanup
-  console.log("\n11. Cleanup");
-  try {
-    await execute("DELETE FROM users WHERE username LIKE ?", [`testuser_${testSuffix}%`]);
-    await execute("DELETE FROM users WHERE username = ?", ["txuser"]);
-    console.log("  ✓ Test data cleaned up");
-  } catch (e) {
-    console.log(`  ⚠ Cleanup warning: ${e.message}`);
-  }
+  // console.log("\n11. Cleanup");
+  // try {
+  //   await execute("DELETE FROM users WHERE username LIKE ?", [`testuser_${testSuffix}%`]);
+  //   await execute("DELETE FROM users WHERE username = ?", ["txuser"]);
+  //   console.log("  ✓ Test data cleaned up");
+  // } catch (e) {
+  //   console.log(`  ⚠ Cleanup warning: ${e.message}`);
+  // }
+  // (Deprecated: runServer_test.sh handles cleanup)
 
   // Summary
   console.log("\n=== Test Summary ===");

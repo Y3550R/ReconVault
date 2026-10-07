@@ -7,9 +7,12 @@ const requiredEnv = [
   "NMAP_PATH",
   "DB_HOST",
   "DB_PORT",
-  "DB_USER",
-  "DB_PASSWORD",
+  "DB_ROOT_PASS",
+  "DB_WEB_USER",
+  "DB_WEB_PASS",
   "DB_NAME",
+  "DB_DEFAULT_ADMIN_USER",
+  "DB_DEFAULT_ADMIN_PASS"
 ];
 
 for (const key of requiredEnv) {
@@ -20,6 +23,7 @@ for (const key of requiredEnv) {
 
 export const config = {
   env: process.env.NODE_ENV || "development",
+  host: process.env.HOST || "127.0.0.1",
   port: parseInt(process.env.PORT, 10) || 3000,
 
   session: {
@@ -34,10 +38,10 @@ export const config = {
   database: {
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT, 10),
-    user: process.env.DB_USER,
-    password: process.env.DB_PASSWORD,
+    user: process.env.DB_WEB_USER,
+    password: process.env.DB_WEB_PASS,
     database: process.env.DB_NAME,
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10,
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10
   },
 
   argon2: {
