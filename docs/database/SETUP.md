@@ -13,8 +13,8 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 | **Port** | 3315 (isolated from other MariaDB instances) |
 | **Data Directory** | `/tmp/mariadb-data` (ephemeral, recreated on startup) |
 | **Socket** | `/tmp/mariadb.sock` |
-| **User** | `reconvault` (password in `.env`) |
-| **Database** | `reconvault` |
+| **User (For webapp)** | in `.env` |
+| **Database** | in `.env` |
 | **Charset** | utf8mb4 / utf8mb4_unicode_ci |
 
 ### Binary Paths (explicit, no PATH lookups)
@@ -31,7 +31,7 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 ### `src/config/index.js`
 - Loads `.env` via dotenv
 - **Validates 7 required env vars at startup** — throws if missing
-- Required: `SESSION_SECRET`, `NMAP_PATH`, `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`, `DB_NAME`
+- Required: `SESSION_SECRET`, `NMAP_PATH`, `DB_HOST`, `DB_PORT`, `DB_ROOT_PASS`, `DB_WEB_USER`, `DB_WEB_PASS`, `DB_NAME`, `DB_DEFAULT_ADMIN_USER`, `DB_DEFAULT_ADMIN_PASS`
 - **No fallbacks for required values**
 - Optional fallbacks only: `SESSION_NAME`, `SESSION_MAX_AGE`, `connectionLimit`, argon2 params
 
@@ -62,7 +62,7 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 
 ---
 
-## Startup Script: `run.sh`
+## Startup Script: `runServer_test.sh`
 
 ### Features
 - Starts MariaDB on port 3315 with isolated data dir
@@ -95,11 +95,16 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 - `NMAP_PATH` — full path to nmap binary
 - `DB_HOST` — database host
 - `DB_PORT` — database port
-- `DB_USER` — database user
-- `DB_PASSWORD` — database password
 - `DB_NAME` — database name
+- `DB_ROOT_PASS` — database root password
+- `DB_WEB_USER` — database webapp username
+- `DB_WEB_PASS` — database webapp password
+- `DB_DEFAULT_ADMIN_USER` — webapp admin username
+- `DB_DEFAULT_ADMIN_PASS` — webapp admin password
 
 **Optional with defaults:**
+- `HOST` — app host (default: 127.0.0.1)
+- `PORT` — app port (default: 3000)
 - `SESSION_NAME` — cookie name (default: `reconvault.sid`)
 - `SESSION_MAX_AGE` — cookie max age ms (default: 86400000)
 - `SESSION_SECURE` — secure cookie flag (default: `false`)
@@ -108,7 +113,6 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 - `ARGON2_ITERATIONS` — argon2 time cost (default: 3)
 - `ARGON2_PARALLELISM` — argon2 parallelism (default: 4)
 - `NODE_ENV` — environment (default: `development`)
-- `PORT` — app port (default: 3000)
 - `LOG_LEVEL` — log level (default: `info`)
 
 > **Never commit `.env`** — it's in `.gitignore`. Use `.env.example` as template.
@@ -117,7 +121,7 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 
 ## Security Conventions
 
-1. **Dedicated DB user** — `reconvault` (not root)
+1. **Dedicated DB user** — e.g. `reconvault` (not root)
 2. **No fallback defaults** for secrets/paths in code
 3. **`.env` in `.gitignore`** — never committed
 4. **Prepared statements only** — `pool.execute(sql, params)`
@@ -131,9 +135,9 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 ```bash
 npm install              # install deps
 npm test                 # run 60 db tests (tests/db_test.js)
-./run.sh                 # start MariaDB + app (full lifecycle)
+./runServer_test.sh                 # start MariaDB + app for testing (full lifecycle)
 # Database CLI:
-/usr/bin/mariadb --protocol=tcp --port=3315 -u reconvault -p
+/usr/bin/mariadb --socket=/tmp/mariadb.sock -u root -p
 ```
 
 ---

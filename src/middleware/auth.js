@@ -74,8 +74,22 @@ export async function loadUserRoles(req, res, next) {
 }
 
 export async function requireEngagementAccess(req, res, next) {
-  const engagementId = parseInt(req.params.engagementId ?? req.body.engagement_id ?? req.query.engagement_id, 10);
-  if (!engagementId) return next();
+  const rawEngagementId =
+  req.params.engagementId ??
+  req.body.engagement_id ??
+  req.query.engagement_id;
+
+  if (rawEngagementId == null) return next();
+
+  const engagementId = Number.parseInt(rawEngagementId, 10);
+
+  if (!Number.isInteger(engagementId) || engagementId <= 0) {
+    throw new AppError(
+      "Invalid engagement ID",
+      400,
+      "INVALID_ENGAGEMENT_ID"
+    );
+  }
 
   const { isAdmin, isPentester, isClient, clientOrganizationId } = req.user.roles;
 

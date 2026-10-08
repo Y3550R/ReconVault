@@ -171,5 +171,3 @@ CREATE TABLE audit_log (
 None — all resolved. Proceed to Phase 0.
 
 ---
-
-*Generated from requirements review session. Source: AGENTS.md (original spec) + 25 decision points.*
