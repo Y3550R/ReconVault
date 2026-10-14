@@ -79,14 +79,17 @@ All engagement endpoints require authentication and engagement access.
 - `POST /api/engagements/:engagementId/scans/:scanId/cancel` — Cancel running scan
 
 ## Admin Users
-`GET/POST/GET/PUT/DELETE /api/admin/users`
+`GET/POST/GET/PUT /api/admin/users` + `/:userId`
 - **Auth required**: Admin
-- **Endpoints**: listUsers, createUser, getUser, updateUser, deleteUser
+- **Endpoints**: listUsers, createUser, getUser, updateUser
+- **Create & Update**: Requires (Optional if update) `username`, `password`, `status`, `roles`
 - **Roles management**: `GET /:userId/roles`, `POST /:userId/roles`, `DELETE /:userId/roles`
+- **Roles POST/DELETE**: Requires `role`
 - **Organization**: `GET /:userId/organization`, `PUT /:userId/organization`
+- **Organization PUT**: Requires `client_organization_id`
 
 ## Admin Organizations
-`GET/POST/GET/PUT/DELETE /api/admin/organizations`
+`GET/POST/GET/PUT /api/admin/organizations` + `/:organizationId`
 - **Auth required**: Admin
-- **Endpoints**: listOrganizations, createOrganization, getOrganization, updateOrganization, deleteOrganization
-- **Engagement organization links**: `GET/POST/DELETE /engagements/:engagementId` (link/disassociate org from engagement)
+- **Endpoints**: listOrganizations, createOrganization, getOrganization, updateOrganization
+- **Create & Update**: Requires (Optional if update) `name`, `contact_information`

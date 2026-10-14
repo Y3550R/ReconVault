@@ -11,6 +11,7 @@ import engagementRoutes from "./routes/engagements.js";
 import engagementNestedRoutes from "./routes/engagementNested.js";
 import adminUserRoutes from "./routes/admin/users.js";
 import adminOrgRoutes from "./routes/admin/organizations.js";
+import pageRoutes from "./routes/pages.js";
 
 createPool(config.database);
 const pool = getPool();
@@ -82,6 +83,8 @@ app.use("/api/engagements", engagementNestedRoutes);
 app.use("/api/engagements", engagementRoutes);
 app.use("/api/admin/users", adminUserRoutes);
 app.use("/api/admin/organizations", adminOrgRoutes);
+
+app.use("/", pageRoutes);
 
 app.use(notFoundHandler);
 app.use(errorHandler);

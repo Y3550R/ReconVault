@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Integration test for backend API routes
 
-const BASE_URL = process.env.BASE_URL || "http://127.0.0.1:3000";
+const BASE_URL = process.env.APP_URL || "http://127.0.0.1:3000";
 
 async function runTests() {
   console.log("=== Backend API Integration Test Suite ===\n");
@@ -251,7 +251,7 @@ async function runTests() {
   try {
     const { data: orgData } = await request("/api/admin/organizations", {}, userCookies.admin);
     const orgToUse = orgData.orgs?.find(o => o.name === "Test Org.");
-    const { status } = await request(`/api/admin/organizations/engagements/${engagementId}`, {
+    const { status } = await request(`/api/engagements/${engagementId}/organizations`, {
       method: "POST",
       body: JSON.stringify({ organization_id: orgToUse.organization_id }),
     }, userCookies.admin);

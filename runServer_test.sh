@@ -12,6 +12,7 @@ exec > >(tee -a "$LOG_FILE") 2>&1
 # Binary paths (override via env if needed)
 MARIADB_BIN="${MARIADB_BIN:-/usr/bin/mariadb}"
 MARIADBD_BIN="${MARIADBD_BIN:-/usr/bin/mariadbd}"
+MARIADB_ADMIN_BIN="${MARIADB_ADMIN_BIN:-/usr/bin/mariadb-admin}"
 MARIADB_INSTALL_DB_BIN="${MARIADB_INSTALL_DB_BIN:-/usr/bin/mariadb-install-db}"
 NODE_BIN="${NODE_BIN:-/usr/bin/node}"
 NPM_BIN="${NPM_BIN:-/usr/bin/npm}"
@@ -25,10 +26,11 @@ if [[ -f ".env" ]]; then
 fi
 
 # Configuration
+MARIADB_RUNNER="${SUDO_USER:-$(logname)}"
 MARIADB_DATADIR="/tmp/mariadb-data"
 MARIADB_PORT=3315
 MARIADB_SOCKET="/tmp/mariadb.sock"
-MARIADB_LOG="/tmp/mariadb.log"
+MARIADB_LOG="/tmp/mariadb-$(date +%Y-%m-%d-%H%M%S).log"
 MARIADB_PID_FILE="/tmp/mariadb.pid"
 APP_HOST="${HOST:-127.0.0.1}"
 APP_PORT="${PORT:-3000}"
@@ -63,6 +65,8 @@ require_env_vars() {
 cleanup() {
   log "Shutting down..."
 
+  local runner="${SUDO_USER:-$(logname)}"
+
   # Stop app
   if [[ -f "$APP_PID_FILE" ]]; then
     APP_PID=$(cat "$APP_PID_FILE")
@@ -74,16 +78,30 @@ cleanup() {
     rm -f "$APP_PID_FILE"
   fi
 
-  # Stop MariaDB
-  if [[ -f "$MARIADB_PID_FILE" ]]; then
-    MARIADB_PID=$(cat "$MARIADB_PID_FILE")
-    if kill -0 "$MARIADB_PID" 2>/dev/null; then
-      log "Stopping MariaDB (PID: $MARIADB_PID)..."
-      kill "$MARIADB_PID" 2>/dev/null || true
-      wait "$MARIADB_PID" 2>/dev/null || true
-    fi
-    rm -f "$MARIADB_PID_FILE"
+  # Stop MariaDB gracefully
+  if [[ -S "$MARIADB_SOCKET" ]]; then
+    log "Stopping MariaDB..."
+    runuser -u "$runner" -- "$MARIADB_ADMIN_BIN" \
+      --socket="$MARIADB_SOCKET" \
+      -u root -p"$DB_ROOT_PASS" shutdown \
+      >/dev/null 2>&1 || true
+
+    # Wait for the server to stop
+    local retries=10
+    while (( retries > 0 )); do
+      if ! runuser -u "$runner" -- "$MARIADB_ADMIN_BIN" \
+        --socket="$MARIADB_SOCKET" \
+        -u root -p"$DB_ROOT_PASS" ping \
+        >/dev/null 2>&1; then
+        break
+      fi
+      sleep 1
+      ((retries--))
+    done
   fi
+
+  # Remove PID file
+  rm -f "$MARIADB_PID_FILE"
 
   # Cleanup socket
   rm -f "$MARIADB_SOCKET"
@@ -98,20 +116,28 @@ trap cleanup EXIT INT TERM
 
 # Start MariaDB
 start_mariadb() {
-  log "Starting MariaDB on port $MARIADB_PORT..."
+  local runner="${SUDO_USER:-$(logname)}"
+
+  log "Starting MariaDB on port $MARIADB_PORT as $runner..."
 
   # Always remove old datadir and recreate
   if [[ -d "$MARIADB_DATADIR" ]]; then
     log "Removing old MariaDB data directory..."
     rm -rf "$MARIADB_DATADIR"
   fi
-  
-  log "Initializing MariaDB data directory..."
-  "$MARIADB_INSTALL_DB_BIN" \
-    --datadir="$MARIADB_DATADIR" \
-    --auth-root-authentication-method=normal >/dev/null 2>&1
 
-  "$MARIADBD_BIN" \
+  install -d -o "$runner" -g "$(id -gn "$runner")" "$MARIADB_DATADIR"
+
+  log "Initializing MariaDB data directory..."
+  runuser -u "$runner" -- "$MARIADB_INSTALL_DB_BIN" \
+    --datadir="$MARIADB_DATADIR" \
+    --auth-root-authentication-method=normal >/dev/null 2>&1 || {
+      err "MariaDB initialization failed"
+      exit 1
+    }
+
+  log "Launching MariaDB..."
+  runuser -u "$runner" -- "$MARIADBD_BIN" \
     --datadir="$MARIADB_DATADIR" \
     --port="$MARIADB_PORT" \
     --socket="$MARIADB_SOCKET" \
@@ -121,16 +147,17 @@ start_mariadb() {
     > "$MARIADB_LOG" 2>&1 &
 
   MARIADB_PID=$!
-  echo "$MARIADB_PID" > "$MARIADB_PID_FILE"
 
-  # Wait for MariaDB to be ready
   log "Waiting for MariaDB to become ready..."
   local retries=30
   while (( retries > 0 )); do
-    if "$MARIADB_BIN" --socket="$MARIADB_SOCKET" -u root -e "SELECT 1" >/dev/null 2>&1; then
+    if runuser -u "$runner" -- "$MARIADB_BIN" \
+      --socket="$MARIADB_SOCKET" -u root -e "SELECT 1" \
+      >/dev/null 2>&1; then
       log "MariaDB ready"
       break
     fi
+
     sleep 1
     ((retries--))
   done
@@ -141,26 +168,40 @@ start_mariadb() {
   fi
 
   log "Setting MariaDB root password..."
-  "$MARIADB_BIN" \
+  runuser -u "$runner" -- "$MARIADB_BIN" \
     --socket="$MARIADB_SOCKET" \
     -u root \
-    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';" >/dev/null 2>&1
+    -e "ALTER USER 'root'@'localhost' IDENTIFIED BY '${DB_ROOT_PASS}';" \
+    >/dev/null 2>&1 || {
+      err "Failed to set MariaDB root password"
+      exit 1
+    }
 
-
-  # Setup database and users
   log "Configuring database..."
-  "$MARIADB_BIN" --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" -e "
-    CREATE DATABASE IF NOT EXISTS ${DB_NAME} CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-    CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'%' IDENTIFIED BY '${DB_WEB_PASS}';
-    GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'%';
-    CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'localhost' IDENTIFIED BY '${DB_WEB_PASS}';
-    GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'localhost';
-    FLUSH PRIVILEGES;
-  " >/dev/null 2>&1
+  runuser -u "$runner" -- "$MARIADB_BIN" \
+    --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" \
+    -e "
+      CREATE DATABASE IF NOT EXISTS ${DB_NAME}
+        CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+      CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'%'
+        IDENTIFIED BY '${DB_WEB_PASS}';
+      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'%';
+      CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'localhost'
+        IDENTIFIED BY '${DB_WEB_PASS}';
+      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'localhost';
+      FLUSH PRIVILEGES;
+    " >/dev/null 2>&1 || {
+      err "Failed to configure database"
+      exit 1
+    }
 
-  # Run schema.sql to create tables
   log "Running database schema..."
-  "$MARIADB_BIN" --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" -D ${DB_NAME} < database/schema.sql >/dev/null 2>&1
+  runuser -u "$runner" -- "$MARIADB_BIN" \
+    --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" \
+    -D "$DB_NAME" < database/schema.sql >/dev/null 2>&1 || {
+      err "Failed to apply database schema"
+      exit 1
+    }
 
   log "Database configured"
 }
@@ -214,7 +255,11 @@ start_app() {
   local retries=10
   while (( retries > 0 )); do
     if "$CURL_BIN" -s "http://${APP_HOST}:${APP_PORT}/health" >/dev/null 2>&1; then
-      log "App ready at http://${APP_HOST}:${APP_PORT}"
+      if [[ "$APP_PORT" == 80 ]]; then
+        log "App ready at http://${APP_HOST}"
+      else
+        log "App ready at http://${APP_HOST}:${APP_PORT}"
+      fi
       break
     fi
     sleep 1
@@ -254,7 +299,11 @@ main() {
   start_app
 
   log "ReconVault is running!"
-  log "  App: http://${APP_HOST}:${APP_PORT}"
+  if [[ "$APP_PORT" == 80 ]]; then
+    log "  App: http://${APP_HOST}"
+  else
+    log "  App: http://${APP_HOST}:${APP_PORT}"
+  fi
   log "  DB:  $MARIADB_BIN --socket=$MARIADB_SOCKET -u root -p"
   log ""
   log "Press Ctrl+C to stop"

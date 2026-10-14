@@ -2,6 +2,36 @@ import { query, execute, transaction } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, sanitizeString } from "../utils/validation.js";
 
+async function getAccessibleEngagements(user) {
+  const { isAdmin, isPentester, isClient, clientOrganizationId } = user.roles;
+
+  if (isAdmin) {
+    return query("SELECT * FROM engagements ORDER BY created_at DESC");
+  }
+
+  if (isPentester) {
+    return query(
+      `SELECT e.* FROM engagements e
+      JOIN engagement_members em ON e.engagement_id = em.engagement_id
+      WHERE em.user_id = ?
+      ORDER BY e.created_at DESC`,
+      [user.user_id]
+    );
+  }
+
+  if (isClient && clientOrganizationId) {
+    return query(
+      `SELECT e.* FROM engagements e
+      JOIN engagement_organizations eo ON e.engagement_id = eo.engagement_id
+      WHERE eo.organization_id = ?
+      ORDER BY e.created_at DESC`,
+      [clientOrganizationId]
+    );
+  }
+
+  return [];
+}
+
 export const listEngagements = asyncHandler(async (req, res) => {
   const engagements = await getAccessibleEngagements(req.user);
   res.json({ engagements });
@@ -9,7 +39,11 @@ export const listEngagements = asyncHandler(async (req, res) => {
 
 export const getEngagement = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
-  const engagement = await query("SELECT * FROM engagements WHERE engagement_id = ?", [engagementId]);
+  const engagement = await query(
+    `SELECT * FROM engagements
+    WHERE engagement_id = ?`,
+    [engagementId]
+  );
 
   if (!engagement.length) {
     throw new AppError("Engagement not found", 404, "NOT_FOUND");
@@ -85,32 +119,73 @@ export const deleteEngagement = asyncHandler(async (req, res) => {
   res.json({ success: true });
 });
 
-async function getAccessibleEngagements(user) {
-  const { isAdmin, isPentester, isClient, clientOrganizationId } = user.roles;
+export const listEngagementMembers = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
 
-  if (isAdmin) {
-    return query("SELECT * FROM engagements ORDER BY created_at DESC");
+  const members = await query(
+    `SELECT u.* FROM users u
+    JOIN engagement_members em ON u.user_id = em.user_id
+    WHERE em.engagement_id = ?`,
+    [engagementId]
+  );
+
+  res.json({ members: members });
+});
+
+export const addEngagementMember = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+  const { user_id } = req.body;
+  if (!user_id) throw new AppError("user_id required", 400, "VALIDATION_ERROR");
+
+  const user = await query("SELECT 1 FROM users WHERE user_id = ?", [user_id]);
+  if (!user.length) throw new AppError("User not found", 404, "NOT_FOUND");
+
+  await execute("INSERT IGNORE INTO engagement_members (engagement_id, user_id) VALUES (?, ?)", [engagementId, user_id]);
+  res.json({ success: true });
+});
+
+export const removeEngagementMember = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+  const userId = parseInt(req.params.userId, 10);
+  await execute("DELETE FROM engagement_members WHERE engagement_id = ? AND user_id = ?", [engagementId, userId]);
+  res.json({ success: true });
+});
+
+export const listEngagementOrganizations = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+
+  const orgs = await query(
+    `SELECT co.* FROM client_organizations co
+    JOIN engagement_organizations eo ON co.organization_id = eo.organization_id
+    WHERE eo.engagement_id = ?`,
+    [engagementId]
+  );
+
+  res.json({ organizations: orgs });
+});
+
+export const addEngagementOrganization = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+  const { organization_id } = req.body;
+
+  const engagement = await query("SELECT 1 FROM engagements WHERE engagement_id = ?", [engagementId]);
+  if (!engagement.length) {
+    throw new AppError("Engagement not found", 404, "NOT_FOUND");
   }
 
-  if (isPentester) {
-    return query(
-      `SELECT e.* FROM engagements e
-       JOIN engagement_members em ON e.engagement_id = em.engagement_id
-       WHERE em.user_id = ?
-       ORDER BY e.created_at DESC`,
-      [user.user_id]
-    );
+  const org = await query("SELECT 1 FROM client_organizations WHERE organization_id = ?", [organization_id]);
+  if (!org.length) {
+    throw new AppError("Organization not found", 404, "NOT_FOUND");
   }
 
-  if (isClient && clientOrganizationId) {
-    return query(
-      `SELECT e.* FROM engagements e
-       JOIN engagement_organizations eo ON e.engagement_id = eo.engagement_id
-       WHERE eo.organization_id = ?
-       ORDER BY e.created_at DESC`,
-      [clientOrganizationId]
-    );
-  }
+  await execute("INSERT IGNORE INTO engagement_organizations (engagement_id, organization_id) VALUES (?, ?)", [engagementId, organization_id]);
+  res.json({ success: true });
+});
 
-  return [];
-}
+export const removeEngagementOrganization = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+  const organizationId = parseInt(req.params.organizationId, 10);
+
+  await execute("DELETE FROM engagement_organizations WHERE engagement_id = ? AND organization_id = ?", [engagementId, organizationId]);
+  res.json({ success: true });
+});

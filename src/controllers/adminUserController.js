@@ -193,21 +193,6 @@ export const updateUser = asyncHandler(async (req, res) => {
   res.json({ user: updated[0] });
 });
 
-export const deleteUser = asyncHandler(async (req, res) => {
-  const userId = parseInt(req.params.userId, 10);
-
-  if (userId === req.user.user_id) {
-    throw new AppError("Cannot delete yourself", 400, "VALIDATION_ERROR");
-  }
-
-  const result = await execute("DELETE FROM users WHERE user_id = ?", [userId]);
-  if (result.affectedRows === 0) {
-    throw new AppError("User not found", 404, "NOT_FOUND");
-  }
-
-  res.json({ success: true });
-});
-
 export const listRoles = asyncHandler(async (req, res) => {
   const userId = parseInt(req.params.userId, 10);
 
@@ -286,7 +271,7 @@ export const getOrganization = asyncHandler(async (req, res) => {
   }
 
   const org = await query(
-    `SELECT co.name, co.contact_information
+    `SELECT co.organization_id, co.name, co.contact_information
     FROM clients c
     LEFT JOIN client_organizations co
     ON c.client_organization_id = co.organization_id
@@ -295,6 +280,7 @@ export const getOrganization = asyncHandler(async (req, res) => {
   );
 
   res.json({
+    organization_id: org[0]?.organization_id ?? null,
     name: org[0]?.name ?? null,
     contact_information: org[0]?.contact_information ?? null,
   });

@@ -1,0 +1,27 @@
+:root {
+    color-scheme: dark;
+
+    /* Text */
+    --rv-ink: #eef2ef;
+    --rv-muted: #a1aca3;
+    --rv-link: #83c997;
+
+    /* Backgrounds */
+    --rv-canvas: #202522;
+    --rv-surface: #292f2b;
+    --rv-sidebar: #202522;
+    --rv-sidebar-muted: #a1aca3;
+
+    /* Borders */
+    --rv-border: #414a43;
+
+    /* Green accent */
+    --rv-primary: #4d9b67;
+    --rv-primary-hover: #408457;
+    --rv-primary-soft: #293f30;
+
+    /* Layout */
+    --rv-radius: 4px;
+    --rv-shadow: none;
+    --rv-sidebar-width: 220px;
+}
