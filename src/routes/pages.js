@@ -14,7 +14,6 @@ function requirePageAuth(req, res, next) {
     next();
 }
 
-
 function requirePageAdmin(req, res, next) {
     if (!req.user?.roles?.isAdmin) {
         return res.redirect("/engagements");
@@ -39,10 +38,95 @@ router.get("/login", (req, res) => {
     res.sendFile(path.join(viewsDir, "login.html"));
 });
 
+// Engagement list
 router.get("/engagements", requirePageAuth, (req, res) => {
     res.sendFile(path.join(viewsDir, "engagements.html"));
 });
 
+// Engagement dashboard
+router.get(
+    "/engagements/:engagementId",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(
+            path.join(viewsDir, "engagements/engagement-dashboard.html")
+        );
+    }
+);
+
+// Engagement members
+router.get(
+    "/engagements/:engagementId/members",
+    requirePageAuth,
+    requirePageAdmin,
+    (req, res) => {
+        res.sendFile(
+            path.join(viewsDir, "engagements/members.html")
+        );
+    }
+);
+
+// Engagement targets list
+router.get(
+    "/engagements/:engagementId/targets",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(path.join(viewsDir, "engagements/targets.html"));
+    }
+);
+
+// Target details
+router.get(
+    "/engagements/:engagementId/targets/:targetId",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(
+            path.join(viewsDir, "engagements/target-details.html")
+        );
+    }
+);
+
+// Service details
+router.get(
+    "/engagements/:engagementId/targets/:targetId/services/:serviceId",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(
+            path.join(viewsDir, "engagements/service-details.html")
+        );
+    }
+);
+
+// Engagement findings list
+router.get(
+    "/engagements/:engagementId/findings",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(path.join(viewsDir, "engagements/findings.html"));
+    }
+);
+
+// Finding details
+router.get(
+    "/engagements/:engagementId/findings/:findingId",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(
+            path.join(viewsDir, "engagements/finding-details.html")
+        );
+    }
+);
+
+// Engagement scans
+router.get(
+    "/engagements/:engagementId/scans",
+    requirePageAuth,
+    (req, res) => {
+        res.sendFile(path.join(viewsDir, "engagements/scans.html"));
+    }
+);
+
+// Admin users
 router.get(
     "/admin/users",
     requirePageAuth,
@@ -52,6 +136,7 @@ router.get(
     }
 );
 
+// Admin organizations
 router.get(
     "/admin/organizations",
     requirePageAuth,
