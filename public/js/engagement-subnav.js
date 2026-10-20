@@ -1,9 +1,10 @@
 import { renderHeader } from './layout.js';
-import { getCurrentUser, isAdmin } from "./auth.js";
+import { getCurrentUser, isAdmin, isPentester } from "./auth.js";
 
 async function initialize() {
   const currentUser = await getCurrentUser();
   const admin = isAdmin(currentUser);
+  const pentester = isPentester(currentUser);
   renderHeader({ user: currentUser });
 
   const path = window.location.pathname;
@@ -21,7 +22,9 @@ async function initialize() {
     : []),
     { href: `${base}/targets`, label: 'Targets', key: 'targets' },
     { href: `${base}/findings`, label: 'Findings', key: 'findings' },
-    { href: `${base}/scans`, label: 'Scans', key: 'scans' },
+    ...((admin || pentester)
+    ? [{ href: `${base}/scans`, label: 'Scans', key: 'scans' }]
+    : []),
   ];
 
   let nav = document.querySelector('[data-engagement-subnav]');

@@ -1,0 +1,403 @@
+
+/* Page headings */
+.page-heading,
+.detail-page-heading {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 1.25rem;
+    margin: 1.5rem 0;
+}
+
+.page-heading h1,
+.detail-page-heading h1 {
+    margin: 0;
+    font-size: 1.65rem;
+}
+
+.page-heading p,
+.detail-page-heading p {
+    margin: 0.4rem 0 0;
+    color: var(--rv-muted);
+}
+
+.back-link {
+    display: inline-block;
+    margin-bottom: 0.65rem;
+    color: var(--rv-link);
+    text-decoration: none;
+}
+
+.back-link:hover {
+    text-decoration: underline;
+}
+
+/* Panels */
+.finding-form-panel,
+.findings-list-panel,
+.finding-overview-panel,
+.finding-text-panel,
+.linked-assets-panel {
+    margin-bottom: 1.25rem;
+    overflow: hidden;
+}
+
+.finding-form-panel[hidden],
+.finding-actions[hidden],
+#finding-actions[hidden] {
+display: none !important;
+}
+
+.panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.25rem;
+    border-bottom: 1px solid var(--rv-border);
+}
+
+.panel-header h2 {
+    margin: 0;
+    font-size: 1.1rem;
+}
+
+.panel-header p {
+    margin: 0.35rem 0 0;
+    color: var(--rv-muted);
+    font-size: 0.9rem;
+}
+
+.findings-content,
+.linked-assets-content {
+    min-width: 0;
+}
+
+.empty-state {
+    padding: 1.5rem;
+    color: var(--rv-muted);
+}
+
+.empty-state h3 {
+    color: var(--rv-ink);
+    font-size: 1.05rem;
+}
+
+/* Finding form */
+.finding-form {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 1rem;
+    padding: 1.25rem;
+}
+
+.form-field {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+}
+
+.form-field label,
+.asset-fieldset legend {
+    color: var(--rv-ink);
+    font-weight: 600;
+}
+
+.form-field input,
+.form-field select,
+.form-field textarea {
+    width: 100%;
+    min-width: 0;
+    padding: 0.65rem 0.75rem;
+    border: 1px solid var(--rv-border);
+    border-radius: var(--rv-radius);
+    background: var(--rv-canvas);
+    color: var(--rv-ink);
+    font: inherit;
+}
+
+.form-field textarea {
+    resize: vertical;
+}
+
+.form-field input:focus,
+.form-field select:focus,
+.form-field textarea:focus {
+    outline: 2px solid var(--rv-primary);
+    outline-offset: 1px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.asset-fieldset {
+    padding: 1rem;
+    border: 1px solid var(--rv-border);
+    border-radius: var(--rv-radius);
+}
+
+.asset-fieldset legend {
+    float: none;
+    width: auto;
+    padding: 0 0.35rem;
+    margin-bottom: 0;
+    font-size: 0.95rem;
+}
+
+.asset-fieldset > p {
+    margin: 0.25rem 0 0.75rem;
+    color: var(--rv-muted);
+    font-size: 0.9rem;
+}
+
+.asset-options {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.6rem;
+    margin-top: 0.65rem;
+}
+
+.asset-option {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.65rem;
+    min-width: 0;
+    padding: 0.75rem;
+    border: 1px solid var(--rv-border);
+    border-radius: var(--rv-radius);
+    background: var(--rv-surface);
+    cursor: pointer;
+}
+
+.asset-option input {
+    width: auto;
+    margin-top: 0.2rem;
+    accent-color: var(--rv-primary);
+}
+
+.asset-option span {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.asset-option strong {
+    font-weight: 600;
+}
+
+.asset-option small {
+    color: var(--rv-muted);
+}
+
+.asset-option:has(input:checked) {
+    border-color: var(--rv-primary);
+    background: var(--rv-primary-soft);
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.65rem;
+    padding-top: 0.25rem;
+}
+
+/* Findings tables */
+.findings-table-wrap,
+.linked-assets-table-wrap {
+    width: 100%;
+    overflow-x: auto;
+}
+
+.findings-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.92rem;
+}
+
+.findings-table th,
+.findings-table td {
+    padding: 0.85rem 1rem;
+    border-bottom: 1px solid var(--rv-border);
+    text-align: left;
+    vertical-align: middle;
+}
+
+.findings-table th {
+    color: var(--rv-muted);
+    background: var(--rv-surface);
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.findings-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.findings-table tbody tr:hover {
+    background: rgba(255, 255, 255, 0.02);
+}
+
+.finding-row-title {
+    min-width: 170px;
+    color: var(--rv-ink);
+    font-weight: 600;
+}
+
+.finding-row-description {
+    max-width: 420px;
+    margin-top: 0.3rem;
+    color: var(--rv-muted);
+    overflow-wrap: anywhere;
+}
+
+.services-count {
+    padding: 0.85rem 1rem;
+    color: var(--rv-muted);
+    border-bottom: 1px solid var(--rv-border);
+}
+
+/* Severity and status badges */
+.finding-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+}
+
+.finding-badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.55rem;
+    border: 1px solid var(--rv-border);
+    border-radius: var(--rv-radius);
+    background: var(--rv-surface);
+    color: var(--rv-ink);
+    font-size: 0.78rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.severity-critical {
+    color: #ffaaa5;
+    border-color: #8b4545;
+    background: #402626;
+}
+
+.severity-high {
+    color: #ffbf91;
+    border-color: #875c3d;
+    background: #3d3025;
+}
+
+.severity-medium {
+    color: #f0d58b;
+    border-color: #79683a;
+    background: #383321;
+}
+
+.severity-low {
+    color: #a9d9ff;
+    border-color: #426a84;
+    background: #243541;
+}
+
+.severity-info {
+    color: #c3cbd0;
+    border-color: #59656b;
+    background: #30383c;
+}
+
+.status-open {
+    color: #ffbf91;
+}
+
+.status-in-progress {
+    color: #a9d9ff;
+}
+
+.status-resolved {
+    color: #9ce0af;
+}
+
+.status-accepted {
+    color: #c9b7f5;
+}
+
+/* Finding detail view */
+.finding-details-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.finding-detail-item {
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    min-width: 0;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--rv-border);
+    overflow-wrap: anywhere;
+}
+
+.finding-detail-label {
+    color: var(--rv-muted);
+    font-size: 0.85rem;
+}
+
+.finding-detail-value {
+    color: var(--rv-ink);
+    white-space: pre-wrap;
+}
+
+.finding-long-text {
+    min-height: 3.5rem;
+    padding: 1.25rem;
+    color: var(--rv-ink);
+    line-height: 1.65;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}
+
+#finding-edit-panel[hidden] {
+display: none !important;
+}
+
+@media (max-width: 800px) {
+    .finding-details-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .findings-table {
+        min-width: 760px;
+    }
+}
+
+@media (max-width: 560px) {
+    .page-heading,
+    .detail-page-heading {
+        flex-direction: column;
+    }
+
+    .finding-form {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .finding-form .full-width {
+        grid-column: auto;
+    }
+
+    .asset-options {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .finding-details-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .panel-header {
+        align-items: flex-start;
+    }
+}

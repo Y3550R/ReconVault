@@ -22,6 +22,14 @@ function requirePageAdmin(req, res, next) {
     next();
 }
 
+function requirePagePentester(req, res, next) {
+    if (!req.user?.roles?.isPentester) {
+        return res.redirect("/engagements");
+    }
+
+    next();
+}
+
 router.get("/", (req, res) => {
     if (req.session?.user) {
         return res.redirect("/engagements");
@@ -86,17 +94,6 @@ router.get(
     }
 );
 
-// Service details
-router.get(
-    "/engagements/:engagementId/targets/:targetId/services/:serviceId",
-    requirePageAuth,
-    (req, res) => {
-        res.sendFile(
-            path.join(viewsDir, "engagements/service-details.html")
-        );
-    }
-);
-
 // Engagement findings list
 router.get(
     "/engagements/:engagementId/findings",
@@ -121,6 +118,7 @@ router.get(
 router.get(
     "/engagements/:engagementId/scans",
     requirePageAuth,
+    requirePagePentester,
     (req, res) => {
         res.sendFile(path.join(viewsDir, "engagements/scans.html"));
     }

@@ -4,30 +4,138 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Engagement Dashboard | ReconVault</title>
+    <meta name="description" content="Engagement overview and security assessment findings">
+    <title>Engagement Overview | ReconVault</title>
 
-    <link href="/css/variables.css" rel="stylesheet">
-    <link href="/css/base.css" rel="stylesheet">
-    <link href="/css/components.css" rel="stylesheet">
-    <link href="/css/layout.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/layout.css">
     <link rel="stylesheet" href="/css/engagement-pages.css">
+    <link rel="stylesheet" href="/css/engagement.css">
 </head>
 
 <body>
     <div class="app-shell">
-
         <header id="app-header" class="app-header"></header>
 
-        <nav class="rv-engagement-subnav" data-engagement-subnav aria-label="Engagement navigation"></nav>
-        <main class="rv-engagement-page" id="main-content">
-            <h1>Dashboard</h1>
-            <p class="rv-page-subtitle">Content will be added later.</p>
-            <section class="rv-empty-content" aria-label="Page content"></section>
-        </main>
+        <main class="app-content engagement-dashboard" id="main-content" tabindex="-1">
+            <div id="dashboard-alert" class="alert d-none" role="alert"></div>
 
+            <section class="dashboard-heading" aria-labelledby="engagement-name">
+                <div class="dashboard-heading__main">
+                    <p class="eyebrow">ENGAGEMENT OVERVIEW</p>
+                    <h1 id="engagement-name">Loading engagement…</h1>
+                    <p id="engagement-description" class="dashboard-description">
+                        Loading engagement details.
+                    </p>
+                    <div class="engagement-meta">
+                        <span id="engagement-status" class="status-badge">Loading</span>
+                        <span id="engagement-organization" class="meta-item"></span>
+                        <span id="engagement-dates" class="meta-item"></span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="dashboard-metrics" aria-label="Engagement metrics">
+                <a class="metric-card" id="targets-metric-link" href="#">
+                    <span class="metric-card__label">Targets</span>
+                    <span class="metric-card__value" id="targets-count">—</span>
+                    <span class="metric-card__hint">In scope</span>
+                </a>
+
+                <a class="metric-card" id="services-metric-link" href="#">
+                    <span class="metric-card__label">Services</span>
+                    <span class="metric-card__value" id="services-count">—</span>
+                    <span class="metric-card__hint">Recorded services</span>
+                </a>
+
+                <a class="metric-card" id="findings-metric-link" href="#">
+                    <span class="metric-card__label">Open findings</span>
+                    <span class="metric-card__value" id="open-findings-count">—</span>
+                    <span class="metric-card__hint">Require attention</span>
+                </a>
+
+                <a class="metric-card metric-card--critical" id="critical-metric-link" href="#">
+                    <span class="metric-card__label">Critical findings</span>
+                    <span class="metric-card__value" id="critical-findings-count">—</span>
+                    <span class="metric-card__hint">Unresolved critical issues</span>
+                </a>
+            </section>
+
+            <div class="dashboard-grid">
+                <section class="dashboard-panel dashboard-panel--findings">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Findings requiring attention</h2>
+                            <p>Highest-severity unresolved findings in this engagement.</p>
+                        </div>
+                        <a id="view-findings-link" class="text-link" href="#">
+                            View all
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
+
+                    <div id="findings-loading" class="panel-message" aria-live="polite">
+                        Loading findings…
+                    </div>
+
+                    <div id="findings-empty" class="panel-message d-none">
+                        No findings require attention.
+                    </div>
+
+                    <div id="findings-error" class="panel-message d-none" role="status">
+                        Findings could not be loaded.
+                    </div>
+
+                    <div class="table-responsive d-none" id="findings-table-wrap">
+                        <table class="dashboard-table">
+                            <thead>
+                                <tr>
+                                    <th scope="col">Severity</th>
+                                    <th scope="col">Finding</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Discovered</th>
+                                </tr>
+                            </thead>
+                            <tbody id="findings-table-body"></tbody>
+                        </table>
+                    </div>
+                </section>
+
+                <section class="dashboard-panel dashboard-panel--targets">
+                    <div class="panel-heading">
+                        <div>
+                            <h2>Targets</h2>
+                            <p>Assets included in this engagement.</p>
+                        </div>
+                        <a id="view-targets-link" class="text-link" href="#">
+                            View all
+                            <span aria-hidden="true">→</span>
+                        </a>
+                    </div>
+
+                    <div id="targets-loading" class="panel-message" aria-live="polite">
+                        Loading targets…
+                    </div>
+
+                    <div id="targets-empty" class="panel-message d-none">
+                        No targets have been added to this engagement.
+                    </div>
+
+                    <div id="targets-error" class="panel-message d-none" role="status">
+                        Targets could not be loaded.
+                    </div>
+
+                    <div id="targets-list" class="target-list d-none"></div>
+                </section>
+            </div>
+        </main>
     </div>
 
-    <script type='module' src="/js/engagement-subnav.js" defer></script>
+    <script type="module" src="/js/engagement-subnav.js"></script>
+    <script type="module" src="/js/pages/engagement.js"></script>
 </body>
 
 </html>

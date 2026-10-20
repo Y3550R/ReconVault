@@ -3,7 +3,8 @@ import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, sanitizeString } from "../utils/validation.js";
 
 async function getAccessibleEngagements(user) {
-  const { isAdmin, isPentester, isClient, clientOrganizationId } = user.roles;
+  const { isAdmin, isPentester, isClient } = user.roles;
+  const clientOrganizationId = user.clientOrganizationId;
 
   if (isAdmin) {
     return query("SELECT * FROM engagements ORDER BY created_at DESC");

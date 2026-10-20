@@ -138,8 +138,8 @@ export const requireEngagementAccess = asyncHandler(async (req, res, next) => {
         isAdmin,
         isPentester,
         isClient,
-        clientOrganizationId,
     } = req.user.roles;
+    const clientOrganizationId = req.user.clientOrganizationId;
 
     if (isAdmin) {
         return next();
@@ -188,47 +188,6 @@ export const requireEngagementAccess = asyncHandler(async (req, res, next) => {
         403,
         "ENGAGEMENT_ACCESS_DENIED"
     );
-});
-
-export const getAccessibleEngagements = asyncHandler(async (user) => {
-    const {
-        isAdmin,
-        isPentester,
-        isClient,
-        clientOrganizationId,
-    } = user.roles;
-
-    if (isAdmin) {
-        return query(
-            "SELECT * FROM engagements ORDER BY created_at DESC"
-        );
-    }
-
-    if (isPentester) {
-        return query(
-            `SELECT e.*
-      FROM engagements e
-      JOIN engagement_members em
-      ON e.engagement_id = em.engagement_id
-      WHERE em.user_id = ?
-      ORDER BY e.created_at DESC`,
-            [user.user_id]
-        );
-    }
-
-    if (isClient && clientOrganizationId) {
-        return query(
-            `SELECT e.*
-      FROM engagements e
-      JOIN engagement_organizations eo
-      ON e.engagement_id = eo.engagement_id
-      WHERE eo.organization_id = ?
-      ORDER BY e.created_at DESC`,
-            [clientOrganizationId]
-        );
-    }
-
-    return [];
 });
 
 export const authMiddleware = [attachUser, loadUserRoles];

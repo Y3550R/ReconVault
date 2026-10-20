@@ -76,3 +76,6 @@ export function hasRole(user, role) {
 export function isAdmin(user) {
     return hasRole(user, "ADMIN");
 }
+export function isPentester(user) {
+    return hasRole(user, "PENTESTER");
+}
