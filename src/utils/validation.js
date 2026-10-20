@@ -11,8 +11,50 @@ export function validateIPv4(ip) {
 export function validateIPv6(ip) {
   if (typeof ip !== "string") return false;
   if (ip === "::1" || ip === "::") return true;
-  const ipv6Regex = /^([0-9a-fA-F]{1,4}:){7}[0-9a-fA-F]{1,4}$/;
-  return ipv6Regex.test(ip);
+  
+  const parts = ip.split(":");
+  if (parts.length < 3 || parts.length > 8) return false;
+  
+  let hasDoubleColon = false;
+  for (const part of parts) {
+    if (part === "") {
+      if (hasDoubleColon) return false;
+      hasDoubleColon = true;
+      continue;
+    }
+    if (!/^[0-9a-fA-F]{1,4}$/.test(part)) return false;
+  }
+  
+  if (hasDoubleColon) return true;
+  return parts.length === 8;
+}
+
+export function validateIPv6CIDR(cidr) {
+  if (typeof cidr !== "string") return false;
+  const match = cidr.match(/^(.+)\/(\d{1,3})$/);
+  if (!match) return false;
+  const ip = match[1];
+  const prefix = parseInt(match[2], 10);
+  if (prefix < 0 || prefix > 128) return false;
+  return validateIPv6(ip);
+}
+
+export function validateIPv4CIDR(cidr) {
+  if (typeof cidr !== "string") return false;
+  const match = cidr.match(/^((\d{1,3}\.){3}\d{1,3})\/(\d{1,2})$/);
+  if (!match) return false;
+  const ip = match[1];
+  const prefix = parseInt(match[3], 10);
+  if (prefix < 0 || prefix > 32) return false;
+  return validateIPv4(ip);
+}
+
+export function validateIPv4OrCIDR(addr) {
+  return validateIPv4(addr) || validateIPv4CIDR(addr);
+}
+
+export function validateIPv6OrCIDR(addr) {
+  return validateIPv6(addr) || validateIPv6CIDR(addr);
 }
 
 export function validateIP(ip) {
@@ -20,8 +62,8 @@ export function validateIP(ip) {
 }
 
 export function validateIPType(ip) {
-  if (validateIPv4(ip)) return "IPV4";
-  if (validateIPv6(ip)) return "IPV6";
+  if (validateIPv4(ip) || validateIPv4CIDR(ip)) return "IPV4";
+  if (validateIPv6(ip) || validateIPv6CIDR(ip)) return "IPV6";
   return null;
 }
 

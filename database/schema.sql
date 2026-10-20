@@ -1,6 +1,6 @@
 -- ReconVault Database Schema (Prototype)
 -- MariaDB 10.13+ / MySQL 8.0+ compatible
--- 19 tables (15 core + sessions + 3 contributor junctions) + triggers + stored procedures
+-- 21 tables (17 core + sessions + 3 contributor junctions + 2 scan input) + triggers + stored procedures
 -- 
 -- IMPORTANT: Application must set @current_user_id session variable before
 -- INSERT/UPDATE on targets, services, findings for contributor triggers to work:
@@ -12,6 +12,8 @@ DROP TABLE IF EXISTS `finding_contributors`;
 DROP TABLE IF EXISTS `service_contributors`;
 DROP TABLE IF EXISTS `target_contributors`;
 DROP TABLE IF EXISTS `contributors`;
+DROP TABLE IF EXISTS `scan_ports`;
+DROP TABLE IF EXISTS `scan_hosts`;
 DROP TABLE IF EXISTS `finding_services`;
 DROP TABLE IF EXISTS `finding_targets`;
 DROP TABLE IF EXISTS `findings`;
@@ -124,7 +126,8 @@ CREATE TABLE `targets` (
     PRIMARY KEY (`target_id`),
     FOREIGN KEY (`engagement_id`) REFERENCES `engagements`(`engagement_id`) ON DELETE CASCADE,
     INDEX `idx_targets_engagement` (`engagement_id`),
-    INDEX `idx_targets_ip` (`ip_address`)
+    INDEX `idx_targets_ip` (`ip_address`),
+    UNIQUE INDEX `uk_targets_engagement_ip` (`engagement_id`, `ip_address`, `ip_type`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `services` (
@@ -140,7 +143,8 @@ CREATE TABLE `services` (
     PRIMARY KEY (`service_id`),
     FOREIGN KEY (`target_id`) REFERENCES `targets`(`target_id`) ON DELETE CASCADE,
     INDEX `idx_services_target` (`target_id`),
-    INDEX `idx_services_port` (`port`)
+    INDEX `idx_services_port` (`port`),
+    UNIQUE INDEX `uk_services_target_port_proto` (`target_id`, `port`, `protocol`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================
@@ -198,6 +202,12 @@ CREATE TABLE `scans` (
     `canceller_user_id` INT,
     `scan_type` ENUM('HOST', 'PORT') NOT NULL DEFAULT 'PORT',
     `status` ENUM('READY', 'RUNNING', 'COMPLETED', 'FAILED', 'CANCELLED') NOT NULL DEFAULT 'READY',
+    `description` TEXT,
+    `target_ip_type` ENUM('IPV4', 'IPV6'),
+    `target_ip_address` VARCHAR(39),
+    `runner_pid` INT,
+    `nmap_output` LONGTEXT,
+    `error_message` TEXT,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `started_at` DATETIME,
     `finished_at` DATETIME,
@@ -209,6 +219,36 @@ CREATE TABLE `scans` (
     FOREIGN KEY (`canceller_user_id`) REFERENCES `users`(`user_id`) ON DELETE SET NULL,
     INDEX `idx_scans_engagement` (`engagement_id`),
     INDEX `idx_scans_status` (`status`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- ============================================================
+-- SCAN INPUT TABLES (per scan_type)
+-- ============================================================
+
+CREATE TABLE `scan_hosts` (
+    `scan_host_id` INT NOT NULL AUTO_INCREMENT,
+    `scan_id` INT NOT NULL,
+    `ip_type` ENUM('IPV4', 'IPV6') NOT NULL,
+    `ip_address_or_cidr` VARCHAR(43) NOT NULL,
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`scan_host_id`),
+    FOREIGN KEY (`scan_id`) REFERENCES `scans`(`scan_id`) ON DELETE CASCADE,
+    INDEX `idx_scan_hosts_scan` (`scan_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `scan_ports` (
+    `scan_port_id` INT NOT NULL AUTO_INCREMENT,
+    `scan_id` INT NOT NULL,
+    `port_start` INT NOT NULL,
+    `port_end` INT NOT NULL,
+    `protocol` VARCHAR(10) NOT NULL DEFAULT 'TCP',
+    `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (`scan_port_id`),
+    FOREIGN KEY (`scan_id`) REFERENCES `scans`(`scan_id`) ON DELETE CASCADE,
+    INDEX `idx_scan_ports_scan` (`scan_id`),
+    CHECK (`port_start` >= 1 AND `port_start` <= 65535),
+    CHECK (`port_end` >= 1 AND `port_end` <= 65535),
+    CHECK (`port_end` >= `port_start`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ============================================================

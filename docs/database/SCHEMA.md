@@ -4,7 +4,7 @@
 
 ---
 
-## Tables (19)
+## Tables (21)
 
 ### Users & Roles (Overlapping Subclasses)
 
@@ -52,7 +52,9 @@
 
 | Table | Columns | Constraints |
 |-------|---------|-------------|
-| `scans` | `scan_id` (PK, AI), `engagement_id` (FK), `creator_user_id` (FK), `runner_user_id` (FK, nullable), `canceller_user_id` (FK, nullable), `scan_type` (HOST/PORT), `status` (READY/RUNNING/COMPLETED/FAILED/CANCELLED), `created_at`, `started_at`, `finished_at`, `updated_at` | CASCADE (engagement), RESTRICT (creator), SET NULL (runner, canceller), indexes on engagement_id, status |
+| `scans` | `scan_id` (PK, AI), `engagement_id` (FK), `creator_user_id` (FK), `runner_user_id` (FK, nullable), `canceller_user_id` (FK, nullable), `scan_type` (HOST/PORT), `status` (READY/RUNNING/COMPLETED/FAILED/CANCELLED), `description`, `target_ip_type` (IPV4/IPV6, nullable), `target_ip_address` (nullable), `runner_pid` (nullable), `nmap_output` (nullable), `error_message` (nullable), `created_at`, `started_at`, `finished_at`, `updated_at` | CASCADE (engagement), RESTRICT (creator), SET NULL (runner, canceller), indexes on engagement_id, status |
+| `scan_hosts` | `scan_host_id` (PK, AI), `scan_id` (FK), `ip_type` (IPV4/IPV6), `ip_address_or_cidr`, `created_at` | CASCADE (scan), index on scan_id |
+| `scan_ports` | `scan_port_id` (PK, AI), `scan_id` (FK), `port_start`, `port_end`, `protocol` (default TCP), `created_at` | CASCADE (scan), index on scan_id, CHECK constraints on port range (1-65535, end >= start) |
 
 ### Sessions
 
@@ -78,6 +80,8 @@
 ```sql
 SET @current_user_id = <user_id>;
 ```
+
+**Note**: Triggers only create PENTESTER contributors. SCAN contributors are created explicitly by application code during scan execution (see `scanExecutor.js`), then linked to targets/services via `target_contributors`/`service_contributors`.
 
 ---
 
@@ -113,6 +117,8 @@ SET @current_user_id = <user_id>;
 | scans | creator_user_id | users | RESTRICT | CASCADE |
 | scans | runner_user_id | users | SET NULL | CASCADE |
 | scans | canceller_user_id | users | SET NULL | CASCADE |
+| scan_hosts | scan_id | scans | CASCADE | CASCADE |
+| scan_ports | scan_id | scans | CASCADE | CASCADE |
 
 ---
 
@@ -124,8 +130,10 @@ SET @current_user_id = <user_id>;
 | users | UNIQUE | username |
 | targets | idx_targets_engagement | engagement_id |
 | targets | idx_targets_ip | ip_address |
+| targets | uk_targets_engagement_ip | engagement_id, ip_address, ip_type |
 | services | idx_services_target | target_id |
 | services | idx_services_port | port |
+| services | uk_services_target_port_proto | target_id, port, protocol |
 | findings | idx_findings_engagement | engagement_id |
 | findings | idx_findings_severity | severity |
 | findings | idx_findings_status | status |
@@ -133,6 +141,8 @@ SET @current_user_id = <user_id>;
 | contributors | idx_contributors_type_scan | contributor_type, scan_id |
 | scans | idx_scans_engagement | engagement_id |
 | scans | idx_scans_status | status |
+| scan_hosts | idx_scan_hosts_scan | scan_id |
+| scan_ports | idx_scan_ports_scan | scan_id |
 
 ---
 
@@ -163,6 +173,8 @@ The `contributors` table uses a polymorphic pattern:
 
 Enforced at application level (CHECK constraint not supported in MariaDB 13).
 
+**SCAN Contributors**: Created explicitly by application when scan executes (not via triggers). When a scan runs, a SCAN-type contributor row is created with `scan_id`, then target/service contributors are linked to it during result parsing.
+
 ---
 
 ## Junction Tables
@@ -176,6 +188,8 @@ Enforced at application level (CHECK constraint not supported in MariaDB 13).
 | target_contributors | contributors ↔ targets | Who created target |
 | service_contributors | contributors ↔ services | Who created service |
 | finding_contributors | contributors ↔ findings | Who created finding |
+| scan_hosts | scans ↔ scan hosts/IPs | Host scan target input |
+| scan_ports | scans ↔ scan ports | Port scan target input |
 
 ---
 
@@ -186,3 +200,4 @@ Enforced at application level (CHECK constraint not supported in MariaDB 13).
 - **Trigger dependency**: Requires `@current_user_id` session variable set by app
 - **Hard delete only**: No soft delete columns
 - **Timestamps**: All core tables have `created_at`, `updated_at` (auto on update)
+- **Scan execution**: Runs nmap via child process; results parsed from XML and upserted into `targets`/`services` with SCAN contributor links. Concurrency and timeout configurable via env vars.

@@ -53,6 +53,11 @@ export const config = {
   nmap: {
     path: process.env.NMAP_PATH,
   },
+
+  scan: {
+    maxConcurrent: parseInt(process.env.MAX_CONCURRENT_SCANS, 10) || 3,
+    timeoutMs: parseInt(process.env.SCAN_TIMEOUT_MS, 10) || 1800000,
+  },
 };
 
 export default config;

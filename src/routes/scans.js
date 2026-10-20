@@ -7,8 +7,8 @@ const router = Router({ mergeParams: true });
 router.get("/", scanController.listScans);
 router.post("/", requirePentester, scanController.createScan);
 router.get("/:scanId", scanController.getScan);
+router.patch("/:scanId", requirePentester, scanController.updateScan);
 router.post("/:scanId/start", requirePentester, scanController.startScan);
 router.post("/:scanId/cancel", requirePentester, scanController.cancelScan);
-router.delete("/:scanId", requirePentester, scanController.deleteScan);
 
 export default router;
