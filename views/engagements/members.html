@@ -45,11 +45,18 @@
                     <form id="add-member-form">
                         <div class="row g-3 align-items-end">
                             <div class="col-12 col-md-8">
-                                <label for="member-user-id" class="form-label">User ID</label>
-                                <input id="member-user-id" class="form-control" name="user_id" type="number" min="1"
-                                    step="1" required placeholder="Enter the user's ID">
+                                <label for="member-user-search" class="form-label">Pentester</label>
+                                <div class="members-combobox">
+                                    <input id="member-user-search" class="form-control members-combobox-input"
+                                        type="text" autocomplete="off" role="combobox" aria-expanded="false"
+                                        aria-controls="member-user-options" aria-autocomplete="list"
+                                        placeholder="Search by username…" required>
+                                    <input id="member-user-id" name="user_id" type="hidden">
+                                    <ul id="member-user-options" class="members-combobox-options" role="listbox"
+                                        hidden></ul>
+                                </div>
                                 <div class="form-text">
-                                    Enter the ID of an existing user account.
+                                    Search for and select an existing user account.
                                 </div>
                             </div>
 
@@ -83,11 +90,18 @@
                     <form id="add-organization-form">
                         <div class="row g-3 align-items-end">
                             <div class="col-12 col-md-8">
-                                <label for="organization-id" class="form-label">Organization ID</label>
-                                <input id="organization-id" class="form-control" name="organization_id" type="number"
-                                    min="1" step="1" required placeholder="Enter the organization's ID">
+                                <label for="organization-search" class="form-label">Client Organization</label>
+                                <div class="members-combobox">
+                                    <input id="organization-search" class="form-control members-combobox-input"
+                                        type="text" autocomplete="off" role="combobox" aria-expanded="false"
+                                        aria-controls="organization-options" aria-autocomplete="list"
+                                        placeholder="Search by organization name…" required>
+                                    <input id="organization-id" name="organization_id" type="hidden">
+                                    <ul id="organization-options" class="members-combobox-options" role="listbox"
+                                        hidden></ul>
+                                </div>
                                 <div class="form-text">
-                                    Enter the ID of an existing client organization.
+                                    Search for and select an existing client organization.
                                 </div>
                             </div>
 

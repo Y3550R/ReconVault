@@ -1,4 +1,4 @@
-import { query, execute, transaction } from "../db.js";
+import { query, execute, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, sanitizeString } from "../utils/validation.js";
 import { setCurrentUserId, clearCurrentUserId } from "../db.js";
@@ -6,15 +6,29 @@ import { setCurrentUserId, clearCurrentUserId } from "../db.js";
 export const listFindings = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
 
-  const findings = await query(
-    `SELECT f.* FROM findings f WHERE f.engagement_id = ?
-     ORDER BY
-       CASE f.severity
-         WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3
-         WHEN 'LOW' THEN 4 WHEN 'INFO' THEN 5 ELSE 6 END,
-       f.discovered_at DESC`,
-    [engagementId]
-  );
+  const [findings = []] = await callProcedure("sp_get_engagement_findings", [
+    engagementId,
+  ]);
+
+  res.json({ findings });
+});
+
+export const listOpenFindings = asyncHandler(async (req, res) => {
+  const engagementId = parseInt(req.params.engagementId, 10);
+  const rawSeverity = req.query.severity;
+  const severity =
+    rawSeverity === undefined || rawSeverity === ""
+      ? null
+      : String(rawSeverity).toUpperCase();
+
+  if (severity && !validateEnum(severity, ["CRITICAL", "HIGH", "MEDIUM", "LOW", "INFO"])) {
+    throw new AppError("Invalid severity", 400, "VALIDATION_ERROR");
+  }
+
+  const [findings = []] = await callProcedure("sp_get_open_findings", [
+    engagementId,
+    severity,
+  ]);
 
   res.json({ findings });
 });

@@ -53,6 +53,23 @@ function engagementId(item) {
     return item.engagement_id ?? item.id;
 }
 
+function todayDateValue() {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+
+    return `${year}-${month}-${day}`;
+}
+
+function dateInputValue(value) {
+    if (!value) return "";
+
+    const match = String(value).match(/^\d{4}-\d{2}-\d{2}/);
+
+    return match ? match[0] : "";
+}
+
 function renderCreateForm() {
     return `
     <section class="create-engagement-box">
@@ -103,6 +120,7 @@ function renderCreateForm() {
         class="form-control"
         id="engagement-start-date"
         name="start_date"
+        value="${todayDateValue()}"
         required
         >
         </div>
@@ -150,6 +168,108 @@ function renderCreateForm() {
     `;
 }
 
+function renderEditForm() {
+    return `
+    <section class="create-engagement-box" id="edit-engagement-box" hidden>
+    <div class="d-flex align-items-center justify-content-between mb-3">
+    <h2 class="h5 mb-0">Edit Engagement</h2>
+    <span class="text-muted small" id="edit-engagement-id-label"></span>
+    </div>
+
+        <form id="edit-engagement-form">
+        <input type="hidden" id="edit-engagement-id" name="engagement_id">
+
+        <div class="mb-3">
+        <label for="edit-engagement-name" class="form-label">
+        Engagement Name
+        </label>
+        <input
+        type="text"
+        class="form-control"
+        id="edit-engagement-name"
+        name="name"
+        required
+        >
+        </div>
+
+        <div class="mb-3">
+        <label for="edit-engagement-description" class="form-label">
+        Description
+        </label>
+        <textarea
+        class="form-control"
+        id="edit-engagement-description"
+        name="description"
+        rows="3"
+        ></textarea>
+        </div>
+
+        <div class="row">
+        <div class="col-md-6 mb-3">
+        <label for="edit-engagement-start-date" class="form-label">
+        Start Date
+        </label>
+        <input
+        type="date"
+        class="form-control"
+        id="edit-engagement-start-date"
+        name="start_date"
+        required
+        >
+        </div>
+
+        <div class="col-md-6 mb-3">
+        <label for="edit-engagement-end-date" class="form-label">
+        End Date
+        </label>
+        <input
+        type="date"
+        class="form-control"
+        id="edit-engagement-end-date"
+        name="end_date"
+        >
+        </div>
+        </div>
+
+        <div class="mb-3">
+        <label for="edit-engagement-status" class="form-label">
+        Status
+        </label>
+        <select
+        class="form-select"
+        id="edit-engagement-status"
+        name="status"
+        required
+        >
+        <option value="PLANNED">Planned</option>
+        <option value="ACTIVE">Active</option>
+        <option value="COMPLETED">Completed</option>
+        <option value="CANCELLED">Cancelled</option>
+        </select>
+        </div>
+
+        <div class="d-flex gap-2">
+        <button
+        id="edit-engagement-save"
+        type="submit"
+        class="btn btn-success"
+        >
+        Save Changes
+        </button>
+        <button
+        id="edit-engagement-cancel"
+        type="button"
+        class="btn btn-outline-secondary"
+        >
+        Cancel
+        </button>
+        </div>
+        </form>
+
+    </section>
+    `;
+}
+
 function renderList() {
     if (!engagements.length) {
         list.innerHTML = `
@@ -182,6 +302,30 @@ function renderList() {
         const startDate = item.start_date
             ? new Date(item.start_date).toLocaleDateString()
             : "—";
+        const actions = [];
+
+        if (id != null) {
+            actions.push(`
+            <a
+            class="btn btn-sm btn-outline-secondary"
+            href="/engagements/${encodeURIComponent(id)}"
+            >
+            View
+            </a>
+            `);
+
+            if (isAdmin(currentUser)) {
+                actions.push(`
+                <button
+                type="button"
+                class="btn btn-sm btn-outline-secondary"
+                data-edit-engagement="${escapeHtml(id)}"
+                >
+                Edit
+                </button>
+                `);
+            }
+        }
 
         return `
         <tr>
@@ -191,17 +335,12 @@ function renderList() {
         <td>${escapeHtml(description)}</td>
         <td>${escapeHtml(startDate)}</td>
         <td class="text-end">
-        ${id != null ? `
-            <a
-            class="btn btn-sm btn-outline-secondary"
-            href="/engagements/${encodeURIComponent(id)}"
-            >
-            View
-            </a>
-            ` : ""}
-            </td>
-            </tr>
-            `;
+        <div class="d-flex justify-content-end gap-2">
+        ${actions.join("")}
+        </div>
+        </td>
+        </tr>
+        `;
     }).join("")}
     </tbody>
     </table>
@@ -251,6 +390,7 @@ async function createEngagement(event) {
         await api.post("/engagements", payload);
 
         form.reset();
+        document.getElementById("engagement-start-date").value = todayDateValue();
         showMessage("Engagement created successfully.", "success");
         await loadEngagements();
     } catch (error) {
@@ -258,6 +398,81 @@ async function createEngagement(event) {
     } finally {
         button.disabled = false;
         button.textContent = "Create engagement";
+    }
+}
+
+function openEditForm(id) {
+    const item = engagements.find(
+        engagement => String(engagementId(engagement)) === String(id)
+    );
+
+    if (!item) return;
+
+    const status = String(item.status ?? "PLANNED").toUpperCase();
+    const statuses = ["PLANNED", "ACTIVE", "COMPLETED", "CANCELLED"];
+
+    document.getElementById("edit-engagement-id").value = engagementId(item) ?? "";
+    document.getElementById("edit-engagement-id-label").textContent =
+        `#${engagementId(item)}`;
+    document.getElementById("edit-engagement-name").value =
+        item.name ?? item.engagement_name ?? "";
+    document.getElementById("edit-engagement-description").value =
+        item.description ?? "";
+    document.getElementById("edit-engagement-start-date").value =
+        dateInputValue(item.start_date);
+    document.getElementById("edit-engagement-end-date").value =
+        dateInputValue(item.end_date);
+    document.getElementById("edit-engagement-status").value =
+        statuses.includes(status) ? status : "PLANNED";
+
+    const box = document.getElementById("edit-engagement-box");
+    box.hidden = false;
+    box.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("edit-engagement-name").focus({ preventScroll: true });
+}
+
+function closeEditForm() {
+    const box = document.getElementById("edit-engagement-box");
+
+    if (box) box.hidden = true;
+
+    document.getElementById("edit-engagement-form")?.reset();
+}
+
+async function updateEngagement(event) {
+    event.preventDefault();
+    clearMessage();
+
+    const id = document.getElementById("edit-engagement-id").value;
+    const button = document.getElementById("edit-engagement-save");
+    const payload = {
+        name: document.getElementById("edit-engagement-name").value.trim(),
+        description: document.getElementById("edit-engagement-description").value.trim(),
+        start_date: document.getElementById("edit-engagement-start-date").value,
+        end_date: document.getElementById("edit-engagement-end-date").value || null,
+        status: document.getElementById("edit-engagement-status").value
+    };
+
+    if (!id) return;
+
+    if (!payload.name) {
+        showMessage("Enter an engagement name.", "warning");
+        return;
+    }
+
+    button.disabled = true;
+    button.textContent = "Saving…";
+
+    try {
+        await api.put(`/engagements/${encodeURIComponent(id)}`, payload);
+        closeEditForm();
+        await loadEngagements();
+        showMessage("Engagement updated successfully.", "success");
+    } catch (error) {
+        showMessage(error.message || "Unable to update engagement.", "danger");
+    } finally {
+        button.disabled = false;
+        button.textContent = "Save Changes";
     }
 }
 
@@ -278,7 +493,10 @@ async function initialize() {
         });
 
         if (isAdmin(currentUser)) {
-            list.insertAdjacentHTML("beforebegin", renderCreateForm());
+            list.insertAdjacentHTML(
+                "beforebegin",
+                renderCreateForm() + renderEditForm()
+            );
 
             const createToggle = document.getElementById("create-engagement-toggle");
             const createForm = document.getElementById("create-engagement-form");
@@ -301,6 +519,22 @@ async function initialize() {
                     createForm.hidden = true;
                     createChevron.textContent = "+";
                 });
+
+            document
+                .getElementById("edit-engagement-form")
+                ?.addEventListener("submit", updateEngagement);
+
+            document
+                .getElementById("edit-engagement-cancel")
+                ?.addEventListener("click", closeEditForm);
+
+            list.addEventListener("click", (event) => {
+                const button = event.target.closest("[data-edit-engagement]");
+
+                if (button) {
+                    openEditForm(button.dataset.editEngagement);
+                }
+            });
         }
 
         await loadEngagements();

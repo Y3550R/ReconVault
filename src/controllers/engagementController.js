@@ -1,36 +1,12 @@
-import { query, execute, transaction } from "../db.js";
+import { query, execute, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, sanitizeString } from "../utils/validation.js";
 
 async function getAccessibleEngagements(user) {
-  const { isAdmin, isPentester, isClient } = user.roles;
-  const clientOrganizationId = user.clientOrganizationId;
-
-  if (isAdmin) {
-    return query("SELECT * FROM engagements ORDER BY created_at DESC");
-  }
-
-  if (isPentester) {
-    return query(
-      `SELECT e.* FROM engagements e
-      JOIN engagement_members em ON e.engagement_id = em.engagement_id
-      WHERE em.user_id = ?
-      ORDER BY e.created_at DESC`,
-      [user.user_id]
-    );
-  }
-
-  if (isClient && clientOrganizationId) {
-    return query(
-      `SELECT e.* FROM engagements e
-      JOIN engagement_organizations eo ON e.engagement_id = eo.engagement_id
-      WHERE eo.organization_id = ?
-      ORDER BY e.created_at DESC`,
-      [clientOrganizationId]
-    );
-  }
-
-  return [];
+  const [engagements = []] = await callProcedure("sp_get_user_engagements", [
+    user.user_id,
+  ]);
+  return engagements;
 }
 
 export const listEngagements = asyncHandler(async (req, res) => {
@@ -40,11 +16,9 @@ export const listEngagements = asyncHandler(async (req, res) => {
 
 export const getEngagement = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
-  const engagement = await query(
-    `SELECT * FROM engagements
-    WHERE engagement_id = ?`,
-    [engagementId]
-  );
+  const [engagement = []] = await callProcedure("sp_get_engagement_summary", [
+    engagementId,
+  ]);
 
   if (!engagement.length) {
     throw new AppError("Engagement not found", 404, "NOT_FOUND");
@@ -98,8 +72,8 @@ export const updateEngagement = asyncHandler(async (req, res) => {
     [
       sanitizeString(name, 150),
       sanitizeString(description, 1000),
-      start_date ?? engagement[0].start_date,
-      end_date ?? engagement[0].end_date,
+      start_date || engagement[0].start_date,
+      end_date === undefined ? engagement[0].end_date : (end_date || null),
       status || engagement[0].status,
       engagementId,
     ]

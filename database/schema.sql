@@ -8,6 +8,13 @@
 
 SET FOREIGN_KEY_CHECKS = 0;
 
+DROP PROCEDURE IF EXISTS `sp_get_engagement_summary`;
+DROP PROCEDURE IF EXISTS `sp_get_engagement_findings`;
+DROP PROCEDURE IF EXISTS `sp_get_target_recon`;
+DROP PROCEDURE IF EXISTS `sp_get_scan_results`;
+DROP PROCEDURE IF EXISTS `sp_get_user_engagements`;
+DROP PROCEDURE IF EXISTS `sp_get_open_findings`;
+
 DROP TABLE IF EXISTS `finding_contributors`;
 DROP TABLE IF EXISTS `service_contributors`;
 DROP TABLE IF EXISTS `target_contributors`;
@@ -371,10 +378,18 @@ CREATE PROCEDURE `sp_get_engagement_summary`(IN p_engagement_id INT)
 BEGIN
     SELECT
         e.*,
-        (SELECT COUNT(*) FROM targets WHERE engagement_id = e.engagement_id) AS target_count,
-        (SELECT COUNT(*) FROM services s JOIN targets t ON s.target_id = t.target_id WHERE t.engagement_id = e.engagement_id) AS service_count,
-        (SELECT COUNT(*) FROM findings WHERE engagement_id = e.engagement_id) AS finding_count,
-        (SELECT COUNT(*) FROM scans WHERE engagement_id = e.engagement_id) AS scan_count
+        (SELECT COUNT(*) FROM targets t
+            WHERE t.engagement_id = e.engagement_id) AS target_count,
+        (SELECT COUNT(*) FROM services s
+            JOIN targets t ON s.target_id = t.target_id
+            WHERE t.engagement_id = e.engagement_id) AS service_count,
+        (SELECT COUNT(*) FROM findings f
+            WHERE f.engagement_id = e.engagement_id) AS finding_count,
+        (SELECT COUNT(*) FROM findings f
+            WHERE f.engagement_id = e.engagement_id
+              AND f.status IN ('OPEN', 'IN PROGRESS')) AS open_finding_count,
+        (SELECT COUNT(*) FROM scans sc
+            WHERE sc.engagement_id = e.engagement_id) AS scan_count
     FROM engagements e
     WHERE e.engagement_id = p_engagement_id;
 END$$
@@ -384,15 +399,16 @@ CREATE PROCEDURE `sp_get_engagement_findings`(IN p_engagement_id INT)
 BEGIN
     SELECT
         f.*,
-        GROUP_CONCAT(DISTINCT t.ip_address) AS target_ips,
-        GROUP_CONCAT(DISTINCT CONCAT(s.name, ':', s.port)) AS services
+        (SELECT GROUP_CONCAT(DISTINCT t.ip_address)
+            FROM finding_targets ft
+            JOIN targets t ON ft.target_id = t.target_id
+            WHERE ft.finding_id = f.finding_id) AS target_ips,
+        (SELECT GROUP_CONCAT(DISTINCT CONCAT(s.name, ':', s.port))
+            FROM finding_services fs
+            JOIN services s ON fs.service_id = s.service_id
+            WHERE fs.finding_id = f.finding_id) AS services
     FROM findings f
-    LEFT JOIN finding_targets ft ON f.finding_id = ft.finding_id
-    LEFT JOIN targets t ON ft.target_id = t.target_id
-    LEFT JOIN finding_services fs ON f.finding_id = fs.finding_id
-    LEFT JOIN services s ON fs.service_id = s.service_id
     WHERE f.engagement_id = p_engagement_id
-    GROUP BY f.finding_id
     ORDER BY
         CASE f.severity
             WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3
@@ -401,43 +417,63 @@ BEGIN
 END$$
 
 -- Get Target Reconnaissance
-CREATE PROCEDURE `sp_get_target_recon`(IN p_target_id INT)
+CREATE PROCEDURE `sp_get_target_recon`(IN p_target_id INT, IN p_engagement_id INT)
 BEGIN
-    SELECT t.* FROM targets t WHERE t.target_id = p_target_id;
-    SELECT * FROM services WHERE target_id = p_target_id ORDER BY port;
+    SELECT t.* FROM targets t
+    WHERE t.target_id = p_target_id AND t.engagement_id = p_engagement_id;
+
+    SELECT s.* FROM services s
+    JOIN targets t ON s.target_id = t.target_id
+    WHERE s.target_id = p_target_id AND t.engagement_id = p_engagement_id
+    ORDER BY s.port;
+
     SELECT f.* FROM findings f
     JOIN finding_targets ft ON f.finding_id = ft.finding_id
-    WHERE ft.target_id = p_target_id
+    WHERE ft.target_id = p_target_id AND f.engagement_id = p_engagement_id
     ORDER BY
         CASE f.severity
             WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3
-            WHEN 'LOW' THEN 4 WHEN 'INFO' THEN 5 ELSE 6 END;
+            WHEN 'LOW' THEN 4 WHEN 'INFO' THEN 5 ELSE 6 END,
+        f.discovered_at DESC;
 END$$
 
 -- Get Scan Results
-CREATE PROCEDURE `sp_get_scan_results`(IN p_scan_id INT)
+CREATE PROCEDURE `sp_get_scan_results`(IN p_scan_id INT, IN p_engagement_id INT)
 BEGIN
-    SELECT s.* FROM scans s WHERE s.scan_id = p_scan_id;
-    -- Scan-to-target/service/finding links deferred (no scan_* junction tables in prototype)
+    SELECT s.*, u.username AS runner_username
+    FROM scans s
+    LEFT JOIN users u ON s.runner_user_id = u.user_id
+    WHERE s.scan_id = p_scan_id AND s.engagement_id = p_engagement_id;
+
+    SELECT * FROM scan_hosts
+    WHERE scan_id = p_scan_id
+    ORDER BY scan_host_id;
+
+    SELECT * FROM scan_ports
+    WHERE scan_id = p_scan_id
+    ORDER BY scan_port_id;
 END$$
 
 -- Get User Engagements
-CREATE PROCEDURE `sp_get_user_engagements`(IN p_user_id INT, IN p_role VARCHAR(20))
+-- Handles overlapping admin/pentester/client roles in a single query.
+CREATE PROCEDURE `sp_get_user_engagements`(IN p_user_id INT)
 BEGIN
-    IF p_role = 'ADMIN' THEN
-        SELECT * FROM engagements ORDER BY created_at DESC;
-    ELSEIF p_role = 'PENTESTER' THEN
-        SELECT e.* FROM engagements e
-        JOIN engagement_members em ON e.engagement_id = em.engagement_id
-        WHERE em.user_id = p_user_id
-        ORDER BY e.created_at DESC;
-    ELSEIF p_role = 'CLIENT' THEN
-        SELECT e.* FROM engagements e
-        JOIN engagement_organizations eo ON e.engagement_id = eo.engagement_id
-        JOIN clients c ON eo.organization_id = c.client_organization_id
-        WHERE c.user_id = p_user_id
-        ORDER BY e.created_at DESC;
-    END IF;
+    SELECT DISTINCT e.*
+    FROM engagements e
+    WHERE EXISTS (
+        SELECT 1 FROM administrators a WHERE a.user_id = p_user_id
+    )
+    OR EXISTS (
+        SELECT 1 FROM engagement_members em
+        WHERE em.engagement_id = e.engagement_id AND em.user_id = p_user_id
+    )
+    OR EXISTS (
+        SELECT 1
+        FROM engagement_organizations eo
+        JOIN clients c ON c.client_organization_id = eo.organization_id
+        WHERE eo.engagement_id = e.engagement_id AND c.user_id = p_user_id
+    )
+    ORDER BY e.created_at DESC;
 END$$
 
 -- Get Open Findings
@@ -445,8 +481,8 @@ CREATE PROCEDURE `sp_get_open_findings`(IN p_engagement_id INT, IN p_severity VA
 BEGIN
     SELECT f.* FROM findings f
     WHERE f.status IN ('OPEN', 'IN PROGRESS')
-    AND (p_engagement_id IS NULL OR f.engagement_id = p_engagement_id)
-    AND (p_severity IS NULL OR f.severity = p_severity)
+      AND (p_engagement_id IS NULL OR f.engagement_id = p_engagement_id)
+      AND (p_severity IS NULL OR p_severity = '' OR f.severity = p_severity)
     ORDER BY
         CASE f.severity
             WHEN 'CRITICAL' THEN 1 WHEN 'HIGH' THEN 2 WHEN 'MEDIUM' THEN 3

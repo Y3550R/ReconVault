@@ -195,7 +195,7 @@ Enforced at application level (CHECK constraint not supported in MariaDB 13).
 
 ## Notes
 
-- **Stored procedures**: Not implemented (MariaDB 13 system table limitation)
+- **Stored procedures**: Implemented in `database/schema.sql` and invoked through `callProcedure()` in `src/db.js`. These read procedures back engagement summaries, engagement findings, target recon data, scan results, user-accessible engagements, and open findings.
 - **CHECK constraints**: Not enforced in MariaDB 13 for polymorphic contributor validation
 - **Trigger dependency**: Requires `@current_user_id` session variable set by app
 - **Hard delete only**: No soft delete columns

@@ -51,6 +51,19 @@ export async function execute(sql, params = []) {
   return result;
 }
 
+export async function callProcedure(name, params = []) {
+  if (!/^[A-Za-z0-9_]+$/.test(name)) {
+    throw new Error(`Invalid stored procedure name: ${name}`);
+  }
+
+  const p = getPool();
+  const placeholders = params.map(() => "?").join(", ");
+  const [results] = await p.query(`CALL \`${name}\`(${placeholders})`, params);
+
+  // mysql2 returns an array of result sets for CALL statements.
+  return Array.isArray(results) && Array.isArray(results[0]) ? results : [results];
+}
+
 export async function getConnection() {
   const p = getPool();
   return p.getConnection();
@@ -143,6 +156,7 @@ export default {
   getPool,
   query,
   execute,
+  callProcedure,
   getConnection,
   transaction,
   close,

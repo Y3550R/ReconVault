@@ -1,9 +1,13 @@
 
 import { spawn } from "node:child_process";
+import { promises as fs } from "node:fs";
 import { isIP } from "node:net";
+import os from "node:os";
+import path from "node:path";
 import { query, execute } from "../db.js";
 import { config } from "../config/index.js";
 import { AppError } from "../middleware/errorHandler.js";
+import { scanEvents } from "./scanEvents.js";
 
 const runningScans = new Map();
 const SUPPORTED_SCAN_TYPES = new Set(["HOST", "PORT"]);
@@ -171,8 +175,9 @@ export async function startScanExecution(scanIdValue, userId) {
     timedOut: false,
     finalized: false,
     spawnError: null,
-    stdout: "",
     stderr: "",
+    output: "",
+    xmlPath: null,
     done: null,
     resolveDone: null,
     rejectDone: null,
@@ -257,7 +262,12 @@ export async function startScanExecution(scanIdValue, userId) {
 
     databaseMarkedRunning = true;
 
-    const command = buildNmapCommand(scan);
+    state.xmlPath = path.join(
+      os.tmpdir(),
+      `reconvault-scan-${scanId}-${process.pid}-${Date.now()}.xml`
+    );
+
+    const command = buildNmapCommand(scan, state.xmlPath);
     const child = spawnNmap(command, state);
     state.process = child;
 
@@ -271,6 +281,13 @@ export async function startScanExecution(scanIdValue, userId) {
       WHERE scan_id = ? AND status = 'RUNNING'`,
       [child.pid, scanId]
     );
+
+    scanEvents.emit("scan:status", {
+      engagementId: state.engagementId,
+      scanId,
+      status: "RUNNING",
+      errorMessage: null,
+    });
 
     state.timeoutHandle = setTimeout(() => {
       timeoutScan(scanId).catch((error) => {
@@ -288,14 +305,18 @@ export async function startScanExecution(scanIdValue, userId) {
       });
     });
 
-    // Resolve when the scan reaches a terminal state.
-    return await state.done;
+    // Return once Nmap is actually running. Completion is signalled through
+    // state.done and the scan event bus so HTTP requests do not stay open for
+    // the entire scan duration.
+    return { scanId, pid: child.pid, done: state.done };
   } catch (error) {
     if (state.process && !state.process.closed) {
       state.process.kill("SIGKILL");
     }
 
     if (state.timeoutHandle) clearTimeout(state.timeoutHandle);
+
+    await removeFile(state.xmlPath);
 
     if (databaseMarkedRunning) {
       try {
@@ -309,6 +330,15 @@ export async function startScanExecution(scanIdValue, userId) {
                       WHERE scan_id = ? AND status = 'RUNNING'`,
                       [String(error.message || "Failed to start scan").slice(0, 4000), scanId]
         );
+
+        if (state.engagementId) {
+          scanEvents.emit("scan:status", {
+            engagementId: state.engagementId,
+            scanId,
+            status: "FAILED",
+            errorMessage: String(error.message || "Failed to start scan").slice(0, 4000),
+          });
+        }
       } catch (dbError) {
         console.error(`Failed to update scan ${scanId} after startup error:`, dbError);
       }
@@ -322,8 +352,8 @@ export async function startScanExecution(scanIdValue, userId) {
   }
 }
 
-function buildNmapCommand(scan) {
-  const args = [];
+function buildNmapCommand(scan, xmlPath) {
+  const args = ["-v", "--stats-every", "5s"];
 
   if (scan.scan_type === "HOST") {
     args.push(
@@ -370,7 +400,7 @@ function buildNmapCommand(scan) {
     throw new AppError("Unsupported scan type", 400, "VALIDATION_ERROR");
   }
 
-  args.push("-oX", "-");
+  args.push("-oX", xmlPath);
 
   return { command: config.nmap.path, args };
 }
@@ -381,18 +411,61 @@ function spawnNmap({ command, args }, state) {
     shell: false,
   });
 
-  state.stdout = "";
   state.stderr = "";
+  state.output = "";
 
   child.stdout?.on("data", (data) => {
-    state.stdout += data.toString();
+    const chunk = data.toString();
+    state.output += chunk;
+
+    scanEvents.emit("scan:output", {
+      engagementId: state.engagementId,
+      scanId: state.scanId,
+      stream: "stdout",
+      chunk,
+    });
   });
 
   child.stderr?.on("data", (data) => {
-    state.stderr += data.toString();
+    const chunk = data.toString();
+    state.stderr += chunk;
+    state.output += chunk;
+
+    scanEvents.emit("scan:output", {
+      engagementId: state.engagementId,
+      scanId: state.scanId,
+      stream: "stderr",
+      chunk,
+    });
   });
 
   return child;
+}
+
+export function getRunningScanOutput(scanIdValue) {
+  const scanId = Number(scanIdValue);
+  const state = runningScans.get(scanId);
+
+  if (!state) return null;
+
+  return {
+    output: state.output,
+    status: "RUNNING",
+    pid: state.process?.pid ?? null,
+    startedAt: state.startTime,
+  };
+}
+
+async function removeFile(filePath) {
+  if (!filePath) return;
+
+  try {
+    await fs.unlink(filePath);
+  } catch (error) {
+    if (error.code !== "ENOENT") {
+      console.error(`Failed to remove scan XML file ${filePath}:`, error);
+    }
+  }
 }
 
 async function finishScan(state, code, signal) {
@@ -402,6 +475,7 @@ async function finishScan(state, code, signal) {
   if (state.timeoutHandle) clearTimeout(state.timeoutHandle);
 
   const { scanId } = state;
+  const consoleOutput = state.output;
   let status;
   let errorMessage = null;
 
@@ -418,18 +492,20 @@ async function finishScan(state, code, signal) {
     } else if (code !== 0) {
       status = "FAILED";
       errorMessage =
-      state.stderr ||
-      `Nmap exited with code ${code}${signal ? ` (signal: ${signal})` : ""}`;
+        state.stderr.trim() ||
+        `Nmap exited with code ${code}${signal ? ` (signal: ${signal})` : ""}`;
     } else {
       try {
-        if (!state.stdout.includes("<nmaprun")) {
+        const xmlOutput = await fs.readFile(state.xmlPath, "utf8");
+
+        if (!xmlOutput.includes("<nmaprun")) {
           throw new Error("Nmap did not produce valid XML output");
         }
 
         await parseAndStoreResults(
           scanId,
           state.engagementId,
-          state.stdout
+          xmlOutput
         );
 
         status = "COMPLETED";
@@ -451,10 +527,17 @@ async function finishScan(state, code, signal) {
                   [
                     status,
                   errorMessage ? String(errorMessage).slice(0, 4000) : null,
-                  state.stdout,
+                  consoleOutput,
                   scanId,
                   ]
     );
+
+    scanEvents.emit("scan:status", {
+      engagementId: state.engagementId,
+      scanId,
+      status,
+      errorMessage: errorMessage ?? null,
+    });
 
     state.resolveDone({ status });
   } catch (error) {
@@ -463,6 +546,8 @@ async function finishScan(state, code, signal) {
     if (runningScans.get(scanId) === state) {
       runningScans.delete(scanId);
     }
+
+    await removeFile(state.xmlPath);
   }
 }
 

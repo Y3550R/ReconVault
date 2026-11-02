@@ -22,6 +22,125 @@
     overflow: hidden;
 }
 
+.scans-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.scan-stream-state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    color: var(--rv-muted);
+    font-size: 0.78rem;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.scan-stream-state::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--rv-muted);
+}
+
+.scan-stream-state[data-state="connected"]::before {
+    background: #77d18f;
+    box-shadow: 0 0 0 3px rgb(119 209 143 / 18%);
+}
+
+.scan-stream-state[data-state="connecting"]::before,
+.scan-stream-state[data-state="reconnecting"]::before {
+    background: #d3b86a;
+}
+
+.scan-stream-state[data-state="offline"]::before {
+    background: #d77a7a;
+}
+
+.scan-output-panel {
+    margin-top: 1.5rem;
+    padding: 0;
+    overflow: hidden;
+}
+
+.scan-output-panel[hidden] {
+    display: none !important;
+}
+
+.scan-output-header {
+    align-items: center;
+}
+
+.scan-output-header p {
+    overflow-wrap: anywhere;
+}
+
+.scan-output {
+    min-height: 140px;
+    max-height: 460px;
+    margin: 0;
+    padding: 1rem 1.25rem;
+    overflow: auto;
+    background: #161a18;
+    color: #d7e4da;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    border-top: 1px solid var(--rv-border);
+}
+
+.scan-output:focus-visible {
+    outline: 2px solid var(--rv-primary);
+    outline-offset: -2px;
+}
+
+.scan-output-panel .scan-status {
+    display: inline-flex;
+    align-items: center;
+    padding: 4px 9px;
+    border: 1px solid var(--rv-border);
+    border-radius: 4px;
+    background: #303832;
+    color: var(--rv-ink);
+    font-size: 0.75rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.scan-output-panel .scan-status.ready {
+    border-color: #5a5a75;
+    background: #2f2f40;
+    color: #c3b8f5;
+}
+
+.scan-output-panel .scan-status.running {
+    border-color: #416e4e;
+    background: #293f30;
+    color: #a9e2b8;
+}
+
+.scan-output-panel .scan-status.completed {
+    border-color: #3d6e87;
+    background: #263d48;
+    color: #a9d9ff;
+}
+
+.scan-output-panel .scan-status.failed {
+    border-color: #8b4545;
+    background: #402626;
+    color: #ffaaa5;
+}
+
+.scan-output-panel .scan-status.cancelled {
+    color: var(--rv-muted);
+}
+
 .scans-table-wrap {
     width: 100%;
     overflow-x: auto;

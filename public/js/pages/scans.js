@@ -6,6 +6,14 @@ const alertBox = document.getElementById("scans-alert");
 const refreshButton = document.getElementById("refresh-scans-button");
 const createButton = document.getElementById("create-scan-button");
 const scansCount = document.getElementById("scans-count");
+const streamState = document.getElementById("scan-stream-state");
+
+const outputPanel = document.getElementById("scan-output-panel");
+const outputTitle = document.getElementById("scan-output-title");
+const outputMeta = document.getElementById("scan-output-meta");
+const outputStatus = document.getElementById("scan-output-status");
+const outputElement = document.getElementById("scan-output");
+const closeOutputButton = document.getElementById("close-scan-output");
 
 const formPanel = document.getElementById("scan-form-panel");
 const formTitle = document.getElementById("scan-form-title");
@@ -40,6 +48,20 @@ let loading = false;
 let saving = false;
 let nextHostIndex = 0;
 let nextPortIndex = 0;
+
+let socket = null;
+let socketReconnectTimer = null;
+let socketReconnectAttempt = 0;
+let pageUnloading = false;
+let refreshTimer = null;
+let pollTimer = null;
+let metaTimer = null;
+
+let selectedScanId = null;
+let dismissedScanId = null;
+let outputLiveBuffer = "";
+let outputSnapshotStatus = null;
+let outputLoadToken = 0;
 
 function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>"']/g, (char) => ({
@@ -86,16 +108,58 @@ function formatDate(value) {
     });
 }
 
+function formatDuration(milliseconds) {
+    const totalSeconds = Math.max(0, Math.floor(milliseconds / 1000));
+    const hours = Math.floor(totalSeconds / 3600);
+    const minutes = Math.floor((totalSeconds % 3600) / 60);
+    const seconds = totalSeconds % 60;
+    const parts = [];
+
+    if (hours) parts.push(`${hours}h`);
+    if (minutes || hours) parts.push(`${minutes}m`);
+    parts.push(`${seconds}s`);
+
+    return parts.join(" ");
+}
+
+function statusClass(status) {
+    const normalized = String(status ?? "UNKNOWN").toUpperCase();
+
+    return normalized === "READY" ? "ready" :
+        normalized === "RUNNING" ? "running" :
+            normalized === "COMPLETED" ? "completed" :
+                normalized === "FAILED" ? "failed" :
+                    normalized === "CANCELLED" ? "cancelled" : "";
+}
+
 function renderStatus(status) {
     const normalized = String(status ?? "UNKNOWN").toUpperCase();
-    const statusClass =
-        normalized === "READY" ? "ready" :
-            normalized === "RUNNING" ? "running" :
-                normalized === "COMPLETED" ? "completed" :
-                    normalized === "FAILED" ? "failed" :
-                        normalized === "CANCELLED" ? "cancelled" : "";
 
-    return `<span class="scan-status ${statusClass}">${escapeHtml(normalized)}</span>`;
+    return `<span class="scan-status ${statusClass(normalized)}">${escapeHtml(normalized)}</span>`;
+}
+
+function scanTargetText(scan) {
+    if (scan.scan_type === "HOST" && scan.hosts?.length) {
+        return scan.hosts.map(h => `${h.ip_address_or_cidr} (${h.ip_type})`).join(", ");
+    }
+
+    if (scan.scan_type === "PORT" && scan.target_ip_address) {
+        const ports = scan.ports?.map(p => `${p.port_start}-${p.port_end}/${p.protocol}`).join(", ") || "—";
+        return `${scan.target_ip_address} (${scan.target_ip_type}) — Ports: ${ports}`;
+    }
+
+    return "—";
+}
+
+function getScan(scanId) {
+    return scans.find(
+        (scan) => String(scan.scan_id ?? scan.id) === String(scanId)
+    );
+}
+
+function setStreamState(state, label) {
+    streamState.dataset.state = state;
+    streamState.textContent = label;
 }
 
 function renderScanType(type) {
@@ -140,18 +204,19 @@ function renderScans() {
     ${scans.map((scan) => {
         const scanId = scan.scan_id ?? scan.id;
         const validId = /^[1-9]\d*$/.test(String(scanId ?? ""));
+        const targetDisplay = scanTargetText(scan);
 
-        let targetDisplay = "—";
-        if (scan.scan_type === "HOST" && scan.hosts?.length) {
-            targetDisplay = scan.hosts.map(h => `${h.ip_address_or_cidr} (${h.ip_type})`).join(", ");
-        } else if (scan.scan_type === "PORT" && scan.target_ip_address) {
-            const ports = scan.ports?.map(p => `${p.port_start}-${p.port_end}/${p.protocol}`).join(", ") || "—";
-            targetDisplay = `${scan.target_ip_address} (${scan.target_ip_type}) — Ports: ${ports}`;
-        }
-
-        const actions = validId && isPentester
+        const outputAction = validId && scan.status !== "READY"
             ? `
-        <div class="d-flex flex-wrap gap-2">
+            <button type="button"
+            class="btn btn-sm btn-outline-secondary rv-button"
+            data-action="output"
+            data-scan-id="${escapeHtml(scanId)}">${scan.status === "RUNNING" ? "Live output" : "View output"}</button>
+            `
+            : "";
+
+        const managementActions = validId && isPentester
+            ? `
         ${scan.status === "READY" ? `
             <button type="button"
             class="btn btn-sm btn-outline-secondary rv-button"
@@ -168,9 +233,12 @@ function renderScans() {
             data-action="cancel"
             data-scan-id="${escapeHtml(scanId)}">Cancel</button>
         ` : ""}
-        </div>
         `
-            : `<span class="text-muted">Unavailable</span>`;
+            : "";
+
+        const actions = outputAction || managementActions
+            ? `<div class="d-flex flex-wrap gap-2">${outputAction}${managementActions}</div>`
+            : `<span class="text-muted">—</span>`;
 
         return `
             <tr>
@@ -191,14 +259,15 @@ function renderScans() {
     `;
 }
 
-async function loadScans() {
+async function loadScans({ silent = false } = {}) {
     if (loading || !engagementId) return;
 
     loading = true;
     scansCount.textContent = "Loading scans...";
     refreshButton.disabled = true;
     content.setAttribute("aria-busy", "true");
-    hideAlert();
+
+    if (!silent) hideAlert();
 
     try {
         const result = await api.get(
@@ -207,14 +276,362 @@ async function loadScans() {
 
         scans = Array.isArray(result?.scans) ? result.scans : [];
         renderScans();
+        syncOutputSelection();
     } catch (error) {
         scansCount.textContent = "Unable to load scans";
-        showAlert(error.message || "Unable to load scans.");
+
+        if (!silent) {
+            showAlert(error.message || "Unable to load scans.");
+        }
     } finally {
         loading = false;
         refreshButton.disabled = false;
         content.setAttribute("aria-busy", "false");
     }
+}
+
+function renderOutputMeta(status, errorMessage, scan) {
+    const normalized = String(status ?? "UNKNOWN").toUpperCase();
+
+    outputStatus.className = `scan-status ${statusClass(normalized)}`;
+    outputStatus.textContent = normalized;
+
+    if (!scan) {
+        outputTitle.textContent = "Scan output";
+        outputMeta.textContent = "Select a scan to view its output.";
+        return;
+    }
+
+    const scanId = scan.scan_id ?? scan.id;
+    const target = scanTargetText(scan);
+    const parts = [];
+
+    if (target !== "—") parts.push(target);
+    if (scan.started_at) {
+        parts.push(`Started ${formatDate(scan.started_at)}`);
+    }
+
+    if (normalized === "RUNNING" && scan.started_at) {
+        const startedAt = new Date(scan.started_at).getTime();
+
+        if (!Number.isNaN(startedAt)) {
+            parts.push(`Elapsed ${formatDuration(Date.now() - startedAt)}`);
+        }
+    }
+
+    if (scan.finished_at) {
+        parts.push(`Finished ${formatDate(scan.finished_at)}`);
+    }
+
+    if (scan.runner_username) {
+        parts.push(`Runner ${scan.runner_username}`);
+    }
+
+    if (errorMessage) {
+        parts.push(errorMessage);
+    }
+
+    outputTitle.textContent = `Scan #${scanId} output`;
+    outputMeta.textContent = parts.join(" · ") || "No additional details.";
+}
+
+function setOutputContent(text) {
+    outputElement.textContent = text || "No output yet.";
+    outputElement.scrollTop = outputElement.scrollHeight;
+}
+
+function scrollOutputToBottom() {
+    outputElement.scrollTop = outputElement.scrollHeight;
+}
+
+function appendScanOutput(chunk) {
+    if (!chunk) return;
+
+    const atBottom =
+        outputElement.scrollHeight - outputElement.scrollTop - outputElement.clientHeight < 48;
+    const existing = outputElement.textContent;
+    const isPlaceholder =
+        existing === "No output yet." ||
+        existing === "Loading output…" ||
+        existing === "This scan has not run yet.";
+    const current = isPlaceholder ? "" : existing;
+
+    let next = current + chunk;
+
+    // Keep the DOM bounded during very long or very verbose scans.
+    if (next.length > 2000000) {
+        next = next.slice(-1500000);
+    }
+
+    outputElement.textContent = next;
+
+    if (atBottom) scrollOutputToBottom();
+}
+
+function mergeSnapshotAndLive(snapshot, live) {
+    if (!live) return snapshot;
+    if (snapshot.endsWith(live)) return snapshot;
+
+    const maxOverlap = Math.min(snapshot.length, live.length);
+
+    for (let length = maxOverlap; length > 0; length -= 1) {
+        if (snapshot.endsWith(live.slice(0, length))) {
+            return snapshot + live.slice(length);
+        }
+    }
+
+    return snapshot + live;
+}
+
+async function loadScanOutput(scanId, { mergeLive = false } = {}) {
+    if (!engagementId || !scanId) return;
+
+    const token = ++outputLoadToken;
+    const scan = getScan(scanId);
+
+    try {
+        const result = await api.get(
+            `/engagements/${encodeURIComponent(engagementId)}/scans/${encodeURIComponent(scanId)}/output`
+        );
+
+        if (
+            token !== outputLoadToken ||
+            String(selectedScanId) !== String(scanId)
+        ) {
+            return;
+        }
+
+        const snapshot = result?.output ?? "";
+        const live = mergeLive ? outputLiveBuffer : "";
+        const status = result?.status ?? scan?.status ?? "UNKNOWN";
+
+        outputSnapshotStatus = status;
+        outputLiveBuffer = "";
+        setOutputContent(mergeSnapshotAndLive(snapshot, live));
+        renderOutputMeta(status, result?.error_message ?? scan?.error_message, getScan(scanId) ?? scan);
+    } catch (error) {
+        if (token !== outputLoadToken) return;
+
+        outputElement.textContent = `Unable to load scan output: ${error.message}`;
+    }
+}
+
+function sendSocketMessage(message) {
+    if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+    }
+}
+
+function selectOutputScan(scanId, { scroll = true } = {}) {
+    const scan = getScan(scanId);
+
+    if (!scan) return;
+
+    selectedScanId = String(scanId);
+    dismissedScanId = null;
+    outputLiveBuffer = "";
+    outputSnapshotStatus = null;
+    outputPanel.hidden = false;
+    sendSocketMessage({ type: "subscribe", scanId: Number(scanId) });
+    renderOutputMeta(scan.status, scan.error_message, scan);
+    setOutputContent(scan.status === "READY" ? "This scan has not run yet." : "Loading output…");
+
+    if (scroll) {
+        outputPanel.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    void loadScanOutput(scanId, { mergeLive: true });
+}
+
+function closeOutputPanel({ dismiss = true } = {}) {
+    if (dismiss) {
+        dismissedScanId = selectedScanId;
+    }
+
+    selectedScanId = null;
+    outputLiveBuffer = "";
+    outputSnapshotStatus = null;
+    outputLoadToken++;
+    outputPanel.hidden = true;
+    outputElement.textContent = "No output yet.";
+    sendSocketMessage({ type: "unsubscribe" });
+}
+
+function syncOutputSelection() {
+    if (selectedScanId != null) {
+        const selected = getScan(selectedScanId);
+
+        if (!selected) {
+            closeOutputPanel({ dismiss: false });
+            return;
+        }
+
+        renderOutputMeta(selected.status, selected.error_message, selected);
+        return;
+    }
+
+    const running = scans.find((scan) => {
+        if (scan.status !== "RUNNING") return false;
+
+        const id = String(scan.scan_id ?? scan.id);
+
+        return dismissedScanId == null || id !== String(dismissedScanId);
+    });
+
+    if (!running) return;
+
+    const runningId = String(running.scan_id ?? running.id);
+
+    selectOutputScan(runningId, { scroll: false });
+}
+
+async function refreshScansFromEvent() {
+    await loadScans({ silent: true });
+
+    if (selectedScanId == null) return;
+
+    const selected = getScan(selectedScanId);
+
+    if (
+        selected &&
+        selected.status !== "RUNNING" &&
+        outputSnapshotStatus !== selected.status
+    ) {
+        await loadScanOutput(selectedScanId);
+    }
+}
+
+function scheduleRefresh() {
+    clearTimeout(refreshTimer);
+    refreshTimer = setTimeout(() => {
+        void refreshScansFromEvent();
+    }, 250);
+}
+
+function handleSocketMessage(event) {
+    let message;
+
+    try {
+        message = JSON.parse(event.data);
+    } catch {
+        return;
+    }
+
+    if (message?.type === "connected") {
+        setStreamState("connected", "Live updates: live");
+        scheduleRefresh();
+        return;
+    }
+
+    if (message?.type === "scan.output") {
+        if (String(message.scanId) !== String(selectedScanId)) return;
+
+        const chunk = String(message.chunk ?? "");
+
+        outputLiveBuffer += chunk;
+        appendScanOutput(chunk);
+        return;
+    }
+
+    if (message?.type === "scan.status" || message?.type === "scans.changed") {
+        scheduleRefresh();
+    }
+}
+
+function scheduleSocketReconnect() {
+    if (pageUnloading) return;
+
+    clearTimeout(socketReconnectTimer);
+
+    const delay = Math.min(15000, 1000 * (2 ** socketReconnectAttempt));
+    socketReconnectAttempt += 1;
+
+    setStreamState("reconnecting", "Live updates: reconnecting…");
+    socketReconnectTimer = setTimeout(connectWebSocket, delay);
+}
+
+function connectWebSocket() {
+    if (pageUnloading || !engagementId) return;
+
+    if (
+        socket &&
+        (socket.readyState === WebSocket.OPEN ||
+            socket.readyState === WebSocket.CONNECTING)
+    ) {
+        return;
+    }
+
+    setStreamState("connecting", "Live updates: connecting…");
+
+    const protocol = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const url = `${protocol}//${window.location.host}/ws/scans?engagementId=${encodeURIComponent(engagementId)}`;
+
+    let ws;
+
+    try {
+        ws = new WebSocket(url);
+    } catch {
+        socket = null;
+        scheduleSocketReconnect();
+        return;
+    }
+
+    socket = ws;
+
+    ws.addEventListener("open", () => {
+        if (socket !== ws) return;
+
+        socketReconnectAttempt = 0;
+        setStreamState("connected", "Live updates: live");
+        scheduleRefresh();
+
+        if (selectedScanId != null) {
+            sendSocketMessage({ type: "subscribe", scanId: Number(selectedScanId) });
+            void loadScanOutput(selectedScanId);
+        }
+    });
+
+    ws.addEventListener("message", handleSocketMessage);
+
+    ws.addEventListener("close", () => {
+        if (socket === ws) {
+            socket = null;
+        }
+
+        scheduleSocketReconnect();
+    });
+
+    ws.addEventListener("error", () => {
+        if (socket === ws) {
+            ws.close();
+        }
+    });
+}
+
+function startPollingFallback() {
+    clearInterval(pollTimer);
+
+    pollTimer = setInterval(() => {
+        const socketOpen = socket?.readyState === WebSocket.OPEN;
+
+        if (!socketOpen) {
+            void refreshScansFromEvent();
+        }
+    }, 10000);
+}
+
+function startElapsedTimer() {
+    clearInterval(metaTimer);
+
+    metaTimer = setInterval(() => {
+        if (selectedScanId == null) return;
+
+        const scan = getScan(selectedScanId);
+
+        if (scan?.status === "RUNNING") {
+            renderOutputMeta(scan.status, scan.error_message, scan);
+        }
+    }, 1000);
 }
 
 function resetForm() {
@@ -565,8 +982,10 @@ async function startScan(scanId) {
         );
 
         await loadScans();
+        selectOutputScan(scanId);
         showAlert("Scan started successfully.", "success");
     } catch (error) {
+        await loadScans({ silent: true });
         showAlert(error.message || "Unable to start the scan.");
     }
 }
@@ -596,14 +1015,23 @@ async function cancelScan(scanId) {
 
 content.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
-    if (!button || !isPentester) return;
+    if (!button) return;
 
     const { action, scanId } = button.dataset;
+
+    if (action === "output") {
+        selectOutputScan(scanId);
+        return;
+    }
+
+    if (!isPentester) return;
 
     if (action === "edit") openEditForm(scanId);
     else if (action === "start") startScan(scanId);
     else if (action === "cancel") cancelScan(scanId);
 });
+
+closeOutputButton.addEventListener("click", () => closeOutputPanel());
 
 scanTypeSelect.addEventListener("change", toggleScanFields);
 addHostButton.addEventListener("click", addHostEntry);
@@ -612,8 +1040,25 @@ addPortButton.addEventListener("click", addPortEntry);
 createButton.addEventListener("click", openCreateForm);
 cancelButton.addEventListener("click", closeScanForm);
 cancelButtonBottom.addEventListener("click", closeScanForm);
-refreshButton.addEventListener("click", loadScans);
+refreshButton.addEventListener("click", () => {
+    void refreshScansFromEvent();
+});
 scanForm.addEventListener("submit", saveScan);
+
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") {
+        void refreshScansFromEvent();
+    }
+});
+
+window.addEventListener("beforeunload", () => {
+    pageUnloading = true;
+    clearTimeout(refreshTimer);
+    clearTimeout(socketReconnectTimer);
+    clearInterval(pollTimer);
+    clearInterval(metaTimer);
+    socket?.close();
+});
 
 async function initialize() {
     if (!engagementId) {
@@ -636,6 +1081,10 @@ async function initialize() {
         createButton.hidden = !isPentester;
 
         await loadScans();
+
+        connectWebSocket();
+        startPollingFallback();
+        startElapsedTimer();
     } catch (error) {
         showAlert(error.message || "Unable to initialize the scans page.");
     }

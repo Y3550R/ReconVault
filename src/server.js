@@ -2,6 +2,7 @@ import { app } from "./app.js";
 import { config } from "./config/index.js";
 import { close, query, execute } from "./db.js";
 import { recoverOrphanedScans } from "./services/scanExecutor.js";
+import { attachScanWebSocket } from "./ws/scanStream.js";
 
 const server = app.listen(config.port, config.host, async () => {
   console.log(`ReconVault running on http://${config.host}:${config.port}`);
@@ -16,6 +17,8 @@ const server = app.listen(config.port, config.host, async () => {
     console.error("Failed to recover orphaned scans:", err);
   }
 });
+
+const scanWebSocket = attachScanWebSocket(server);
 
 // Handle unhandled errors without crashing the server
 process.on("unhandledRejection", (reason) => {
@@ -39,6 +42,8 @@ const shutdown = async (signal) => {
   } catch (err) {
     console.error("Error cancelling running scans:", err);
   }
+
+  scanWebSocket.close();
 
   server.close(async () => {
     await close();

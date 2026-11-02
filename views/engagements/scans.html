@@ -174,14 +174,37 @@
                         <p id="scans-count">Loading scans...</p>
                     </div>
 
-                    <button id="refresh-scans-button" class="btn btn-outline-secondary rv-button" type="button">
-                        Refresh
-                    </button>
+                    <div class="scans-header-actions">
+                        <span id="scan-stream-state" class="scan-stream-state" data-state="connecting">
+                            Live updates: connecting…
+                        </span>
+                        <button id="refresh-scans-button" class="btn btn-outline-secondary rv-button" type="button">
+                            Refresh
+                        </button>
+                    </div>
                 </div>
 
                 <div id="scans-content" aria-live="polite" aria-busy="false">
                     <div class="scans-empty">Loading scans...</div>
                 </div>
+            </section>
+
+            <section id="scan-output-panel" class="panel scan-output-panel" aria-labelledby="scan-output-title" hidden>
+                <div class="panel-header scan-output-header">
+                    <div>
+                        <h2 id="scan-output-title">Scan output</h2>
+                        <p id="scan-output-meta">Select a scan to view its output.</p>
+                    </div>
+
+                    <div class="scans-header-actions">
+                        <span id="scan-output-status" class="scan-status"></span>
+                        <button id="close-scan-output" class="btn btn-outline-secondary rv-button" type="button">
+                            Close
+                        </button>
+                    </div>
+                </div>
+
+                <pre id="scan-output" class="scan-output" tabindex="0" aria-live="polite">No output yet.</pre>
             </section>
         </main>
     </div>

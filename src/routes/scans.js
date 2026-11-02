@@ -6,6 +6,7 @@ const router = Router({ mergeParams: true });
 
 router.get("/", scanController.listScans);
 router.post("/", requirePentester, scanController.createScan);
+router.get("/:scanId/output", scanController.getScanOutput);
 router.get("/:scanId", scanController.getScan);
 router.patch("/:scanId", requirePentester, scanController.updateScan);
 router.post("/:scanId/start", requirePentester, scanController.startScan);

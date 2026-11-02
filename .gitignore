@@ -44,6 +44,7 @@ build/
 tmp/
 temp/
 *.tmp
+assets_scrapped/
 
 # SSL/TLS
 *.pem

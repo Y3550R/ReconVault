@@ -93,6 +93,7 @@ The `contributors` table uses a polymorphic pattern:
 
 ### 7. Database-First Schema
 - Schema defined in `database/schema.sql` (19 tables, 7 triggers, 28 foreign keys)
+- Read-side stored procedures are defined in the schema and called through `db.callProcedure()`
 - Application code reflects the schema structure
 - No migration tool — schema changes applied manually to `schema.sql`
 

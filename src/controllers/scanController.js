@@ -1,14 +1,18 @@
-import { query, execute, transaction } from "../db.js";
+import { query, execute, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, validatePort, validateIPv4OrCIDR, validateIPv6OrCIDR } from "../utils/validation.js";
 import { setCurrentUserId, clearCurrentUserId } from "../db.js";
-import { startScanExecution, cancelScanExecution } from "../services/scanExecutor.js";
+import { startScanExecution, cancelScanExecution, getRunningScanOutput } from "../services/scanExecutor.js";
+import { scanEvents } from "../services/scanEvents.js";
 
 export const listScans = asyncHandler(async (req, res) => {
     const engagementId = parseInt(req.params.engagementId, 10);
     const scans = await query(
         `SELECT
-        s.*,
+        s.scan_id, s.engagement_id, s.creator_user_id, s.runner_user_id,
+        s.canceller_user_id, s.scan_type, s.status, s.description,
+        s.target_ip_type, s.target_ip_address, s.runner_pid, s.error_message,
+        s.created_at, s.started_at, s.finished_at, s.updated_at,
         u.username AS runner_username
         FROM scans AS s
         LEFT JOIN users AS u
@@ -54,15 +58,39 @@ export const getScan = asyncHandler(async (req, res) => {
     const engagementId = parseInt(req.params.engagementId, 10);
     const scanId = parseInt(req.params.scanId, 10);
 
-    const scan = await query("SELECT * FROM scans WHERE scan_id = ? AND engagement_id = ?", [scanId, engagementId]);
+    const [scans = [], hosts = [], ports = []] = await callProcedure(
+        "sp_get_scan_results",
+        [scanId, engagementId]
+    );
+
+    if (!scans.length) {
+        throw new AppError("Scan not found", 404, "NOT_FOUND");
+    }
+
+    res.json({ scan: { ...scans[0], hosts, ports } });
+});
+
+export const getScanOutput = asyncHandler(async (req, res) => {
+    const engagementId = parseInt(req.params.engagementId, 10);
+    const scanId = parseInt(req.params.scanId, 10);
+
+    const scan = await query(
+        "SELECT status, error_message, nmap_output FROM scans WHERE scan_id = ? AND engagement_id = ?",
+        [scanId, engagementId]
+    );
+
     if (!scan.length) {
         throw new AppError("Scan not found", 404, "NOT_FOUND");
     }
 
-    const hosts = await query("SELECT * FROM scan_hosts WHERE scan_id = ? ORDER BY scan_host_id", [scanId]);
-    const ports = await query("SELECT * FROM scan_ports WHERE scan_id = ? ORDER BY scan_port_id", [scanId]);
+    const live = getRunningScanOutput(scanId);
+    const output = live?.output || scan[0].nmap_output || "";
 
-    res.json({ scan: { ...scan[0], hosts, ports } });
+    res.json({
+        output,
+        status: scan[0].status,
+        error_message: scan[0].error_message,
+    });
 });
 
 export const createScan = asyncHandler(async (req, res) => {
@@ -163,6 +191,8 @@ export const createScan = asyncHandler(async (req, res) => {
     const scan = await query("SELECT * FROM scans WHERE scan_id = ?", [scanId]);
     const scanHosts = await query("SELECT * FROM scan_hosts WHERE scan_id = ? ORDER BY scan_host_id", [scanId]);
     const scanPorts = await query("SELECT * FROM scan_ports WHERE scan_id = ? ORDER BY scan_port_id", [scanId]);
+
+    scanEvents.emit("scans:changed", { engagementId, scanId });
 
     res.status(201).json({ scan: { ...scan[0], hosts: scanHosts, ports: scanPorts } });
 });
@@ -313,6 +343,8 @@ export const updateScan = asyncHandler(async (req, res) => {
     const scanHosts = await query("SELECT * FROM scan_hosts WHERE scan_id = ? ORDER BY scan_host_id", [scanId]);
     const scanPorts = await query("SELECT * FROM scan_ports WHERE scan_id = ? ORDER BY scan_port_id", [scanId]);
 
+    scanEvents.emit("scans:changed", { engagementId, scanId });
+
     res.json({ scan: { ...scanUpdated[0], hosts: scanHosts, ports: scanPorts } });
 });
 
@@ -354,6 +386,9 @@ export const startScan = asyncHandler(async (req, res) => {
     await startScanExecution(scanId, req.user.user_id);
 
     const scanUpdated = await query("SELECT * FROM scans WHERE scan_id = ?", [scanId]);
+
+    scanEvents.emit("scans:changed", { engagementId, scanId });
+
     res.json({ scan: scanUpdated[0] });
 });
 
@@ -376,5 +411,8 @@ export const cancelScan = asyncHandler(async (req, res) => {
     }
 
     const scanUpdated = await query("SELECT * FROM scans WHERE scan_id = ?", [scanId]);
+
+    scanEvents.emit("scans:changed", { engagementId, scanId });
+
     res.json({ scan: scanUpdated[0] });
 });

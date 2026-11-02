@@ -8,12 +8,14 @@ const elements = {
     membersCount: document.querySelector("#members-count"),
     membersContent: document.querySelector("#members-content"),
     addMemberForm: document.querySelector("#add-member-form"),
+    memberUserSearch: document.querySelector("#member-user-search"),
     memberUserId: document.querySelector("#member-user-id"),
     addMemberButton: document.querySelector("#add-member-button"),
 
     organizationsCount: document.querySelector("#organizations-count"),
     organizationsContent: document.querySelector("#organizations-content"),
     addOrganizationForm: document.querySelector("#add-organization-form"),
+    organizationSearch: document.querySelector("#organization-search"),
     organizationId: document.querySelector("#organization-id"),
     addOrganizationButton: document.querySelector("#add-organization-button"),
 };
@@ -22,6 +24,8 @@ const engagementId = getEngagementId();
 
 let members = [];
 let organizations = [];
+let users = [];
+let organizationDirectory = [];
 let canManage = false;
 let loading = false;
 
@@ -74,6 +78,239 @@ function getSecondaryText(record, type) {
 
     return parts.join(" · ");
 }
+
+function describeUser(user) {
+    const roles = [];
+
+    if (Number(user.is_admin)) roles.push("Admin");
+    if (Number(user.is_pentester)) roles.push("Pentester");
+    if (Number(user.is_client)) roles.push("Client");
+
+    const parts = [];
+
+    if (roles.length) {
+        parts.push(roles.join(" / "));
+    }
+
+    if (user.status && user.status !== "ACTIVE") {
+        parts.push(user.status);
+    }
+
+    return parts.join(" · ");
+}
+
+function getUserItems() {
+    const assigned = new Set(members.map((member) => Number(member.user_id)));
+
+    return users
+        .filter((user) => !assigned.has(Number(user.user_id)))
+        .map((user) => {
+            const label = user.username ?? `User #${user.user_id}`;
+            const meta = describeUser(user);
+
+            return {
+                id: user.user_id,
+                label,
+                meta,
+                searchText: `${label} ${meta}`.toLowerCase(),
+            };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+}
+
+function getOrganizationItems() {
+    const assigned = new Set(
+        organizations.map((organization) => Number(organization.organization_id))
+    );
+
+    return organizationDirectory
+        .filter((organization) => !assigned.has(Number(organization.organization_id)))
+        .map((organization) => {
+            const label = organization.name ?? `Organization #${organization.organization_id}`;
+            const meta = organization.contact_information ?? "";
+
+            return {
+                id: organization.organization_id,
+                label,
+                meta,
+                searchText: `${label} ${meta}`.toLowerCase(),
+            };
+        })
+        .sort((a, b) => a.label.localeCompare(b.label, undefined, { sensitivity: "base" }));
+}
+
+function createCombobox({ input, hidden, list, getItems }) {
+    let visible = [];
+    let activeIndex = -1;
+
+    function setActive(index) {
+        activeIndex = index;
+
+        const options = [...list.querySelectorAll(".members-combobox-option")];
+
+        options.forEach((option, optionIndex) => {
+            option.classList.toggle("is-active", optionIndex === index);
+        });
+
+        const active = options[index];
+
+        if (active) {
+            input.setAttribute("aria-activedescendant", active.id);
+        } else {
+            input.removeAttribute("aria-activedescendant");
+        }
+    }
+
+    function build(query = "") {
+        const items = getItems();
+        const needle = query.trim().toLowerCase();
+
+        visible = needle
+            ? items.filter((item) => item.searchText.includes(needle))
+            : items;
+
+        list.replaceChildren();
+
+        if (!visible.length) {
+            const empty = document.createElement("li");
+            empty.className = "members-combobox-empty";
+            empty.textContent = items.length
+                ? "No matching results."
+                : "Nothing available to add.";
+            list.append(empty);
+        } else {
+            visible.forEach((item, index) => {
+                const option = document.createElement("li");
+                option.id = `${list.id}-option-${index}`;
+                option.className = "members-combobox-option";
+                option.dataset.id = String(item.id);
+                option.setAttribute("role", "option");
+                option.setAttribute(
+                    "aria-selected",
+                    String(String(item.id) === hidden.value)
+                );
+
+                const label = document.createElement("span");
+                label.className = "members-combobox-label";
+                label.textContent = item.label;
+                option.append(label);
+
+                if (item.meta) {
+                    const meta = document.createElement("span");
+                    meta.className = "members-combobox-meta";
+                    meta.textContent = item.meta;
+                    option.append(meta);
+                }
+
+                list.append(option);
+            });
+        }
+
+        activeIndex = -1;
+        input.removeAttribute("aria-activedescendant");
+        list.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+    }
+
+    function close() {
+        list.hidden = true;
+        activeIndex = -1;
+        input.setAttribute("aria-expanded", "false");
+        input.removeAttribute("aria-activedescendant");
+    }
+
+    function select(item) {
+        hidden.value = String(item.id);
+        input.value = item.label;
+        close();
+    }
+
+    input.addEventListener("focus", () => build(""));
+    input.addEventListener("click", () => {
+        if (list.hidden) build("");
+    });
+    input.addEventListener("input", () => {
+        hidden.value = "";
+        build(input.value);
+    });
+    input.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowDown" || event.key === "ArrowUp") {
+            event.preventDefault();
+
+            if (list.hidden) build(input.value);
+            if (!visible.length) return;
+
+            const delta = event.key === "ArrowDown" ? 1 : -1;
+            let next = activeIndex + delta;
+
+            if (next < 0) next = visible.length - 1;
+            if (next >= visible.length) next = 0;
+
+            setActive(next);
+        } else if (event.key === "Enter") {
+            if (!list.hidden && activeIndex >= 0) {
+                event.preventDefault();
+                select(visible[activeIndex]);
+            } else if (!list.hidden) {
+                const exact = visible.find(
+                    (item) => item.label.toLowerCase() === input.value.trim().toLowerCase()
+                );
+                const match = exact ?? (visible.length === 1 ? visible[0] : null);
+
+                if (match) {
+                    event.preventDefault();
+                    select(match);
+                }
+            }
+        } else if (event.key === "Escape") {
+            close();
+        }
+    });
+    input.addEventListener("blur", () => close());
+    list.addEventListener("pointerdown", (event) => event.preventDefault());
+    list.addEventListener("mousedown", (event) => event.preventDefault());
+    list.addEventListener("click", (event) => {
+        const option = event.target.closest(".members-combobox-option");
+
+        if (!option) return;
+
+        const item = visible.find(
+            (entry) => String(entry.id) === option.dataset.id
+        );
+
+        if (item) {
+            select(item);
+        }
+    });
+    document.addEventListener("click", (event) => {
+        if (!list.hidden && !input.parentElement.contains(event.target)) {
+            close();
+        }
+    });
+
+    return {
+        close,
+        reset() {
+            hidden.value = "";
+            input.value = "";
+            close();
+        },
+    };
+}
+
+const userCombobox = createCombobox({
+    input: elements.memberUserSearch,
+    hidden: elements.memberUserId,
+    list: document.querySelector("#member-user-options"),
+    getItems: getUserItems,
+});
+
+const organizationCombobox = createCombobox({
+    input: elements.organizationSearch,
+    hidden: elements.organizationId,
+    list: document.querySelector("#organization-options"),
+    getItems: getOrganizationItems,
+});
 
 function showAlert(message, type = "danger") {
     elements.alert.textContent = message;
@@ -211,6 +448,18 @@ async function loadOrganizations() {
     renderOrganizations();
 }
 
+async function loadUserDirectory() {
+    const response = await api.get("/admin/users");
+
+    users = Array.isArray(response?.users) ? response.users : [];
+}
+
+async function loadOrganizationDirectory() {
+    const response = await api.get("/admin/organizations");
+
+    organizationDirectory = Array.isArray(response?.orgs) ? response.orgs : [];
+}
+
 async function loadPage() {
     if (!engagementId) {
         showAlert("Invalid engagement ID in the page URL.");
@@ -227,10 +476,21 @@ async function loadPage() {
     setLoadingState(true);
 
     try {
-        await Promise.all([
+        const tasks = [
             loadMembers(),
             loadOrganizations(),
-        ]);
+        ];
+
+        if (canManage) {
+            tasks.push(loadUserDirectory(), loadOrganizationDirectory());
+        }
+
+        const results = await Promise.allSettled(tasks);
+        const failure = results.find((result) => result.status === "rejected");
+
+        if (failure) {
+            throw failure.reason;
+        }
     } catch (error) {
         showAlert(error.message || "Failed to load engagement members.");
     } finally {
@@ -250,7 +510,8 @@ async function handleAddMember(event) {
     const userId = Number(elements.memberUserId.value);
 
     if (!Number.isSafeInteger(userId) || userId < 1) {
-        showAlert("Enter a valid user ID.");
+        showAlert("Select a user from the list.");
+        elements.memberUserSearch.focus();
         return;
     }
 
@@ -263,6 +524,7 @@ async function handleAddMember(event) {
         });
 
         elements.addMemberForm.reset();
+        userCombobox.reset();
 
         await loadMembers();
         showAlert("Pentester added successfully.", "success");
@@ -284,7 +546,8 @@ async function handleAddOrganization(event) {
     const organizationId = Number(elements.organizationId.value);
 
     if (!Number.isSafeInteger(organizationId) || organizationId < 1) {
-        showAlert("Enter a valid organization ID.");
+        showAlert("Select a client organization from the list.");
+        elements.organizationSearch.focus();
         return;
     }
 
@@ -297,6 +560,7 @@ async function handleAddOrganization(event) {
         });
 
         elements.addOrganizationForm.reset();
+        organizationCombobox.reset();
 
         await loadOrganizations();
         showAlert("Client organization added successfully.", "success");

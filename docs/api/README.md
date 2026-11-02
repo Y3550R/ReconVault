@@ -70,6 +70,7 @@ All engagement endpoints require authentication and engagement access.
 - **Auth required**: Pentester or higher
 - **Create**: Requires `title`, `description`, `severity`; optional `status`, `target_ids[]`, `service_ids[]`, `references`, `cvss_vector`, `remediation`
 - **Update**: Can replace target/service links
+- `GET /api/engagements/:engagementId/findings/open` — List OPEN / IN PROGRESS findings. Optional `?severity=CRITICAL|HIGH|MEDIUM|LOW|INFO` filter.
 
 ## Scans (nested under engagement)
 `GET/POST/GET/PATCH /api/engagements/:engagementId/scans[/:scanId]`
@@ -79,10 +80,13 @@ All engagement endpoints require authentication and engagement access.
   - **PORT scan**: Requires `target_ip_type` ("IPV4" or "IPV6"), `target_ip_address` (string), and `ports` array with objects `{ "port_start": int, "port_end": int, "protocol": "TCP|UDP|SCTP|ICMP" }`
   - Starts at `READY` status
 - **Update** (`PATCH /:scanId`): Only allowed while scan is `READY`. Can update `scan_type`, `description`, `hosts`, `ports`, `target_ip_type`, `target_ip_address`
-- `POST /api/engagements/:engagementId/scans/:scanId/start` — Start scan (engagement must be `ACTIVE`, scan must be `READY` with valid config). Runs nmap asynchronously.
+- `POST /api/engagements/:engagementId/scans/:scanId/start` — Start scan (engagement must be `ACTIVE`, scan must be `READY` with valid config). Starts nmap asynchronously and returns immediately with the scan in `RUNNING` status.
 - `POST /api/engagements/:engagementId/scans/:scanId/cancel` — Cancel running scan
-- **Response includes**: `hosts` (from scan_hosts), `ports` (from scan_ports), `nmap_output`, `error_message`, `runner_pid`, `started_at`, `finished_at`
+- `GET /api/engagements/:engagementId/scans/:scanId/output` — Fetch the human-readable nmap output for a scan. For a currently running scan this returns the live in-memory buffer.
+- **Live updates**: Connect to `ws(s)://<host>/ws/scans?engagementId=:engagementId`. The server sends `scan.output` chunks, `scan.status` events, and `scans.changed` events for that engagement.
+- **Response includes**: `hosts` (from scan_hosts), `ports` (from scan_ports), `error_message`, `runner_pid`, `started_at`, `finished_at`. `nmap_output` is available from the dedicated output endpoint.
 - **Scan state machine**: `READY` → `RUNNING` → `COMPLETED` | `FAILED` | `CANCELLED`
+- **Nmap verbosity**: Scans run with `-v` and `--stats-every 5s`; nmap console output is streamed live and persisted as `nmap_output` on completion.
 - **Concurrency limit**: Configurable via `MAX_CONCURRENT_SCANS` (default 3)
 - **Timeout**: Configurable via `SCAN_TIMEOUT_MS` (default 30 min), marks scan `FAILED` with partial results if exceeded
 

@@ -1,4 +1,4 @@
-import { query, execute, transaction } from "../db.js";
+import { query, execute, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, sanitizeString, validateIP, validateIPType } from "../utils/validation.js";
 import { setCurrentUserId, clearCurrentUserId } from "../db.js";
@@ -13,13 +13,16 @@ export const getTarget = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
   const targetId = parseInt(req.params.targetId, 10);
 
-  const target = await query("SELECT * FROM targets WHERE target_id = ? AND engagement_id = ?", [targetId, engagementId]);
-  if (!target.length) {
+  const [targets = [], services = [], findings = []] = await callProcedure(
+    "sp_get_target_recon",
+    [targetId, engagementId]
+  );
+
+  if (!targets.length) {
     throw new AppError("Target not found", 404, "NOT_FOUND");
   }
 
-  const services = await query("SELECT * FROM services WHERE target_id = ? ORDER BY port", [targetId]);
-  res.json({ target: target[0], services });
+  res.json({ target: targets[0], services, findings });
 });
 
 export const createTarget = asyncHandler(async (req, res) => {
