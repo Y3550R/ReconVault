@@ -1,0 +1,25 @@
+/* Engagements list page. */
+.create-engagement-box {
+    overflow: hidden;
+}
+
+.create-engagement-toggle {
+    width: 100%;
+    border: 0;
+    border-bottom: 1px solid var(--rv-border);
+    background: transparent;
+    color: var(--rv-ink);
+    font: inherit;
+    font-weight: 650;
+    text-align: left;
+    cursor: pointer;
+}
+
+.create-engagement-toggle:hover {
+    background: var(--rv-row-hover);
+}
+
+.create-engagement-toggle span:last-child {
+    color: var(--rv-muted);
+    font-size: 1.1rem;
+}

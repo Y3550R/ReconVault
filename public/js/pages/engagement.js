@@ -190,7 +190,16 @@ function createFindingRow(finding) {
     severityCell.append(
         createBadge(
             severity,
-            `severity-badge severity-badge--${severity.toLowerCase()}`
+            `rv-badge rv-badge--${severity.toLowerCase()}`
+        )
+    );
+
+    const statusValue = String(finding.status ?? "OPEN").toUpperCase();
+    const statusCell = document.createElement("td");
+    statusCell.append(
+        createBadge(
+            statusValue,
+            `rv-badge rv-badge--${statusValue.toLowerCase().replaceAll(" ", "-")}`
         )
     );
 
@@ -209,7 +218,7 @@ function createFindingRow(finding) {
     row.append(
         severityCell,
         titleCell,
-        createCell(finding.status ?? "OPEN"),
+        statusCell,
         createCell(formatDate(finding.discovered_at ?? finding.created_at))
     );
 
@@ -310,7 +319,7 @@ function renderEngagement(engagement) {
 
     statusElement.textContent = status;
     statusElement.className =
-        `status-badge status-badge--${status.toLowerCase()}`;
+        `rv-badge rv-badge--${status.toLowerCase()}`;
 
     setText(
         "#engagement-dates",

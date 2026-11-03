@@ -7,17 +7,12 @@
     <title>Engagement Scans | ReconVault</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/variables.css" rel="stylesheet">
-    <link href="/css/base.css" rel="stylesheet">
-    <link href="/css/components.css" rel="stylesheet">
-    <link href="/css/layout.css" rel="stylesheet">
-    <link href="/css/engagement-pages.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
     <link href="/css/scans.css" rel="stylesheet">
 </head>
 
 <body>
     <div class="app-shell">
-
         <header id="app-header" class="app-header"></header>
 
         <nav class="rv-engagement-subnav" data-engagement-subnav aria-label="Engagement navigation"></nav>
@@ -36,66 +31,72 @@
 
             <div id="scans-alert" class="alert d-none" role="alert"></div>
 
-            <section id="scan-form-panel" class="panel scan-form-panel" aria-labelledby="scan-form-title" hidden>
-                <div class="panel-header scan-section-header">
+            <section id="scan-form-panel" class="panel panel--spaced" aria-labelledby="scan-form-title" hidden>
+                <div class="panel-header">
                     <div>
                         <h2 id="scan-form-title">Create scan</h2>
                         <p>Configure a host discovery or port scan.</p>
                     </div>
 
-                    <button id="cancel-scan-form" class="btn btn-outline-secondary rv-button" type="button">
+                    <button id="cancel-scan-form" class="btn btn-outline-secondary" type="button">
                         Cancel
                     </button>
                 </div>
 
-                <form id="scan-form">
-                    <div class="scan-form-body">
+                <form id="scan-form" class="scan-form">
+                    <div class="panel-body">
                         <div id="scan-form-alert" class="alert d-none" role="alert"></div>
 
-                        <div class="row g-3">
-                            <div class="col-md-6">
-                                <label for="scan-type" class="form-label">Scan type *</label>
-                                <select id="scan-type" name="scan_type" class="form-select" required>
-                                    <option value="">Select scan type</option>
-                                    <option value="HOST">Host discovery</option>
-                                    <option value="PORT">Port scan</option>
-                                </select>
-                            </div>
-
-                            <div class="col-12">
-                                <label for="scan-description" class="form-label">Description</label>
-                                <textarea id="scan-description" name="description" class="form-control" rows="3"
-                                    maxlength="2000"></textarea>
-                            </div>
-
-                            <div id="host-scan-fields" class="d-none">
-                                <div class="col-12">
-                                    <legend class="form-label">Hosts / CIDR ranges</legend>
-                                    <p class="text-muted">Add at least one IP address or CIDR range to scan.</p>
+                        <div class="scan-form-section">
+                            <div class="row g-3">
+                                <div class="col-md-6">
+                                    <label for="scan-type" class="form-label">Scan type *</label>
+                                    <select id="scan-type" name="scan_type" class="form-select" required>
+                                        <option value="">Select scan type</option>
+                                        <option value="HOST">Host discovery</option>
+                                        <option value="PORT">Port scan</option>
+                                    </select>
                                 </div>
 
-                                <div id="host-entries">
-                                    <div class="col-12 host-entry" data-index="0">
-                                        <div class="input-group mb-2">
-                                            <select class="form-select host-ip-type" name="hosts[0][ip_type]" required>
-                                                <option value="IPV4">IPv4</option>
-                                                <option value="IPV6">IPv6</option>
-                                            </select>
-                                            <input type="text" class="form-control host-ip-address"
-                                                name="hosts[0][ip_address_or_cidr]" placeholder="192.168.1.0/24 or 10.0.0.1" required>
-                                            <button type="button" class="btn btn-outline-danger remove-host" title="Remove">×</button>
-                                        </div>
+                                <div class="col-12" hidden>
+                                    <label for="scan-description" class="form-label">Description</label>
+                                    <textarea id="scan-description" name="description" class="form-control" rows="3"
+                                        maxlength="2000"></textarea>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div id="host-scan-fields" class="scan-form-section d-none">
+                            <div>
+                                <p class="form-label mb-1">Hosts / CIDR ranges</p>
+                                <p class="text-muted mb-0">Add at least one IP address or CIDR range to scan.</p>
+                            </div>
+
+                            <div id="host-entries" class="scan-entry-list">
+                                <div class="scan-entry" data-index="0">
+                                    <div class="input-group">
+                                        <select class="form-select host-ip-type" name="hosts[0][ip_type]" required>
+                                            <option value="IPV4">IPv4</option>
+                                            <option value="IPV6">IPv6</option>
+                                        </select>
+                                        <input type="text" class="form-control host-ip-address"
+                                            name="hosts[0][ip_address_or_cidr]"
+                                            placeholder="192.168.1.0/24 or 10.0.0.1" required>
+                                        <button type="button" class="btn btn-outline-danger remove-host"
+                                            title="Remove">×</button>
                                     </div>
                                 </div>
-
-                                <div class="col-12 mt-2">
-                                    <button type="button" id="add-host-button" class="btn btn-outline-secondary btn-sm rv-button">
-                                        + Add host
-                                    </button>
-                                </div>
                             </div>
 
-                            <div id="port-scan-fields" class="d-none">
+                            <div>
+                                <button type="button" id="add-host-button" class="btn btn-outline-secondary btn-sm">
+                                    + Add host
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="port-scan-fields" class="scan-form-section d-none">
+                            <div class="row g-3">
                                 <div class="col-md-4">
                                     <label for="port-target-ip-type" class="form-label">Target IP type *</label>
                                     <select id="port-target-ip-type" name="target_ip_type" class="form-select" required>
@@ -110,53 +111,54 @@
                                     <input id="port-target-ip-address" name="target_ip_address" class="form-control"
                                         placeholder="192.168.1.10 or 2001:db8::1" required>
                                 </div>
+                            </div>
 
-                                <div class="col-12">
-                                    <legend class="form-label">Port ranges</legend>
-                                    <p class="text-muted">Add at least one port range to scan.</p>
-                                </div>
+                            <div>
+                                <p class="form-label mb-1">Port ranges</p>
+                                <p class="text-muted mb-0">Add at least one port range to scan.</p>
+                            </div>
 
-                                <div id="port-entries">
-                                    <div class="col-12 port-entry" data-index="0">
-                                        <div class="row g-2 mb-2">
-                                            <div class="col-md-3">
-                                                <label for="port-start-0" class="form-label visually-hidden">Start port</label>
-                                                <input id="port-start-0" name="ports[0][port_start]" class="form-control" type="number"
-                                                    min="1" max="65535" placeholder="Start" required>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label for="port-end-0" class="form-label visually-hidden">End port</label>
-                                                <input id="port-end-0" name="ports[0][port_end]" class="form-control" type="number"
-                                                    min="1" max="65535" placeholder="End" required>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label for="port-protocol-0" class="form-label">Protocol</label>
-                                                <select id="port-protocol-0" name="ports[0][protocol]" class="form-select">
-                                                    <option value="TCP" selected>TCP</option>
-                                                    <option value="UDP">UDP</option>
-                                                    <option value="SCTP">SCTP</option>
-                                                    <option value="ICMP">ICMP</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3 d-flex align-items-end">
-                                                <button type="button" class="btn btn-outline-danger remove-port w-100" title="Remove">×</button>
-                                            </div>
+                            <div id="port-entries" class="scan-entry-list">
+                                <div class="scan-entry" data-index="0">
+                                    <div class="row g-2">
+                                        <div class="col-md-3">
+                                            <label for="port-start-0"
+                                                class="form-label visually-hidden">Start port</label>
+                                            <input id="port-start-0" name="ports[0][port_start]" class="form-control"
+                                                type="number" min="1" max="65535" placeholder="Start" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="port-end-0" class="form-label visually-hidden">End port</label>
+                                            <input id="port-end-0" name="ports[0][port_end]" class="form-control"
+                                                type="number" min="1" max="65535" placeholder="End" required>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <label for="port-protocol-0" class="form-label">Protocol</label>
+                                            <select id="port-protocol-0" name="ports[0][protocol]" class="form-select">
+                                                <option value="TCP" selected>TCP</option>
+                                                <option value="UDP">UDP</option>
+                                                <option value="SCTP">SCTP</option>
+                                                <option value="ICMP">ICMP</option>
+                                            </select>
+                                        </div>
+                                        <div class="col-md-3 d-flex align-items-end">
+                                            <button type="button" class="btn btn-outline-danger remove-port w-100"
+                                                title="Remove">×</button>
                                         </div>
                                     </div>
                                 </div>
+                            </div>
 
-                                <div class="col-12 mt-2">
-                                    <button type="button" id="add-port-button" class="btn btn-outline-secondary btn-sm rv-button">
-                                        + Add port range
-                                    </button>
-                                </div>
+                            <div>
+                                <button type="button" id="add-port-button" class="btn btn-outline-secondary btn-sm">
+                                    + Add port range
+                                </button>
                             </div>
                         </div>
                     </div>
 
-                    <div class="scan-form-footer">
-                        <button id="cancel-scan-form-bottom" type="button"
-                            class="btn btn-outline-secondary rv-button">
+                    <div class="panel-footer">
+                        <button id="cancel-scan-form-bottom" type="button" class="btn btn-outline-secondary">
                             Cancel
                         </button>
 
@@ -168,37 +170,37 @@
             </section>
 
             <section class="panel scans-list-panel" aria-labelledby="scans-list-title">
-                <div class="panel-header scans-section-header">
+                <div class="panel-header">
                     <div>
                         <h2 id="scans-list-title">Scans</h2>
-                        <p id="scans-count">Loading scans...</p>
+                        <p id="scans-count">Loading scans…</p>
                     </div>
 
                     <div class="scans-header-actions">
                         <span id="scan-stream-state" class="scan-stream-state" data-state="connecting">
                             Live updates: connecting…
                         </span>
-                        <button id="refresh-scans-button" class="btn btn-outline-secondary rv-button" type="button">
+                        <button id="refresh-scans-button" class="btn btn-outline-secondary" type="button">
                             Refresh
                         </button>
                     </div>
                 </div>
 
                 <div id="scans-content" aria-live="polite" aria-busy="false">
-                    <div class="scans-empty">Loading scans...</div>
+                    <p class="empty-state">Loading scans…</p>
                 </div>
             </section>
 
             <section id="scan-output-panel" class="panel scan-output-panel" aria-labelledby="scan-output-title" hidden>
-                <div class="panel-header scan-output-header">
+                <div class="panel-header">
                     <div>
                         <h2 id="scan-output-title">Scan output</h2>
                         <p id="scan-output-meta">Select a scan to view its output.</p>
                     </div>
 
                     <div class="scans-header-actions">
-                        <span id="scan-output-status" class="scan-status"></span>
-                        <button id="close-scan-output" class="btn btn-outline-secondary rv-button" type="button">
+                        <span id="scan-output-status" class="rv-badge"></span>
+                        <button id="close-scan-output" class="btn btn-outline-secondary" type="button">
                             Close
                         </button>
                     </div>

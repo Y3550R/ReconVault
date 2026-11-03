@@ -4,141 +4,133 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>User Management — ReconVault</title>
+    <title>User Management | ReconVault</title>
 
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="/css/variables.css" rel="stylesheet">
-    <link href="/css/base.css" rel="stylesheet">
-    <link href="/css/components.css" rel="stylesheet">
-    <link href="/css/layout.css" rel="stylesheet">
+    <link href="/css/app.css" rel="stylesheet">
 </head>
 
 <body>
-    <header id="app-header" class="app-header"></header>
+    <div class="app-shell">
+        <header id="app-header" class="app-header"></header>
 
-    <main class="app-content container-fluid">
-        <div class="page-heading">
-            <div>
-                <h1 class="h3">User Management</h1>
-                <p>Manage user accounts, roles, and client organizations.</p>
-            </div>
-            <button class="btn btn-success" id="show-create-user" type="button">
-                Create User
-            </button>
-        </div>
-
-        <section class="panel mb-4" id="user-form-panel" hidden>
-            <h2 class="h5 mb-3" id="user-form-title">Create User</h2>
-
-            <form id="user-form">
-                <input type="hidden" id="user-id">
-
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label for="username" class="form-label">Username</label>
-                        <input class="form-control" id="username" required>
-                    </div>
-
-                    <div class="col-md-6 mb-3">
-                        <label for="password" class="form-label">Password</label>
-                        <input
-                            class="form-control"
-                            id="password"
-                            type="password"
-                            autocomplete="new-password">
-                        <small class="text-muted">
-                            Required when creating a user; leave blank to keep the existing password.
-                        </small>
-                    </div>
+        <main class="app-content" id="main-content" tabindex="-1">
+            <div class="page-heading">
+                <div>
+                    <h1>User Management</h1>
+                    <p>Manage user accounts, roles, and client organizations.</p>
                 </div>
-
-                <div class="mb-3">
-                    <label for="user-status" class="form-label">Status</label>
-                    <select class="form-select" id="user-status" required>
-                        <option value="ACTIVE">Active</option>
-                        <option value="INACTIVE">Inactive</option>
-                    </select>
-                </div>
-
-                <fieldset class="mb-3">
-                    <legend class="form-label">Roles</legend>
-                    <div class="d-flex flex-wrap gap-3">
-                        <div class="form-check">
-                            <input
-                                class="form-check-input user-role-checkbox"
-                                type="checkbox"
-                                value="admin"
-                                id="role-admin">
-                            <label class="form-check-label" for="role-admin">
-                                Administrator
-                            </label>
-                        </div>
-
-                        <div class="form-check">
-                            <input
-                                class="form-check-input user-role-checkbox"
-                                type="checkbox"
-                                value="pentester"
-                                id="role-pentester">
-                            <label class="form-check-label" for="role-pentester">
-                                Pentester
-                            </label>
-                        </div>
-
-                        <div class="form-check">
-                            <input
-                                class="form-check-input user-role-checkbox"
-                                type="checkbox"
-                                value="client"
-                                id="role-client">
-                            <label class="form-check-label" for="role-client">
-                                Client
-                            </label>
-                        </div>
-                    </div>
-                    <div id="user-roles-error" class="text-danger small mt-1"></div>
-                </fieldset>
-
-                <div id="user-organization-section" class="mb-3" hidden>
-                    <label for="organization-select" class="form-label">
-                        Client Organization
-                    </label>
-                    <select class="form-select" id="organization-select">
-                        <option value="">Select organization</option>
-                    </select>
-                    <div id="organization-error" class="text-danger small mt-1"></div>
-                </div>
-
-                <div id="user-form-message" role="status" aria-live="polite"></div>
-
-                <div class="d-flex gap-2 mt-3">
-                    <button class="btn btn-success" type="submit" id="save-user">
-                        Save User
-                    </button>
-                    <button class="btn btn-outline-secondary" type="button" id="cancel-user">
-                        Cancel
-                    </button>
-                </div>
-            </form>
-        </section>
-
-        <section class="panel">
-            <div class="d-flex flex-wrap align-items-center justify-content-between gap-3 mb-3">
-                <h2 class="h5 mb-0">Users</h2>
-                <input
-                    class="form-control"
-                    id="user-search"
-                    placeholder="Search username..."
-                    aria-label="Search users"
-                    style="max-width: 300px">
+                <button class="btn btn-primary" id="show-create-user" type="button">
+                    Create user
+                </button>
             </div>
 
-            <div id="user-message" role="status" aria-live="polite"></div>
-            <div id="user-table-container">
-                <p class="text-muted">Loading users...</p>
-            </div>
-        </section>
-    </main>
+            <section class="panel panel--spaced" id="user-form-panel" hidden aria-labelledby="user-form-title">
+                <div class="panel-header">
+                    <h2 id="user-form-title">Create user</h2>
+                </div>
+
+                <form id="user-form">
+                    <div class="panel-body">
+                        <input type="hidden" id="user-id">
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="username" class="form-label">Username</label>
+                                <input class="form-control" id="username" required>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="password" class="form-label">Password</label>
+                                <input class="form-control" id="password" type="password"
+                                    autocomplete="new-password">
+                                <div class="form-text">
+                                    Required when creating a user; leave blank to keep the existing password.
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label for="user-status" class="form-label">Status</label>
+                                <select class="form-select" id="user-status" required>
+                                    <option value="ACTIVE">Active</option>
+                                    <option value="INACTIVE">Inactive</option>
+                                </select>
+                            </div>
+
+                            <div class="col-12">
+                                <fieldset>
+                                    <legend class="form-label">Roles</legend>
+                                    <div class="d-flex flex-wrap gap-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input user-role-checkbox" type="checkbox"
+                                                value="admin" id="role-admin">
+                                            <label class="form-check-label" for="role-admin">
+                                                Administrator
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input user-role-checkbox" type="checkbox"
+                                                value="pentester" id="role-pentester">
+                                            <label class="form-check-label" for="role-pentester">
+                                                Pentester
+                                            </label>
+                                        </div>
+
+                                        <div class="form-check">
+                                            <input class="form-check-input user-role-checkbox" type="checkbox"
+                                                value="client" id="role-client">
+                                            <label class="form-check-label" for="role-client">
+                                                Client
+                                            </label>
+                                        </div>
+                                    </div>
+                                    <div id="user-roles-error" class="text-danger small mt-1"></div>
+                                </fieldset>
+                            </div>
+
+                            <div class="col-12" id="user-organization-section" hidden>
+                                <label for="organization-select" class="form-label">
+                                    Client organization
+                                </label>
+                                <select class="form-select" id="organization-select">
+                                    <option value="">Select organization</option>
+                                </select>
+                                <div id="organization-error" class="text-danger small mt-1"></div>
+                            </div>
+                        </div>
+
+                        <div id="user-form-message" role="status" aria-live="polite"></div>
+                    </div>
+
+                    <div class="panel-footer">
+                        <button class="btn btn-outline-secondary" type="button" id="cancel-user">
+                            Cancel
+                        </button>
+                        <button class="btn btn-primary" type="submit" id="save-user">
+                            Save user
+                        </button>
+                    </div>
+                </form>
+            </section>
+
+            <section class="panel" aria-labelledby="user-list-title">
+                <div class="panel-header">
+                    <div>
+                        <h2 id="user-list-title">Users</h2>
+                        <p>All accounts registered in ReconVault.</p>
+                    </div>
+                    <input class="form-control search-input" id="user-search" type="search"
+                        placeholder="Search username…" aria-label="Search users">
+                </div>
+
+                <div id="user-message" role="status" aria-live="polite"></div>
+                <div id="user-table-container">
+                    <p class="panel-message">Loading users…</p>
+                </div>
+            </section>
+        </main>
+    </div>
 
     <script type="module" src="/js/pages/admin-users.js"></script>
 </body>

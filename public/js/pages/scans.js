@@ -127,15 +127,16 @@ function statusClass(status) {
 
     return normalized === "READY" ? "ready" :
         normalized === "RUNNING" ? "running" :
-            normalized === "COMPLETED" ? "completed" :
+            normalized === "COMPLETED" ? "scan-completed" :
                 normalized === "FAILED" ? "failed" :
-                    normalized === "CANCELLED" ? "cancelled" : "";
+                    normalized === "CANCELLED" ? "scan-cancelled" : "";
 }
 
 function renderStatus(status) {
     const normalized = String(status ?? "UNKNOWN").toUpperCase();
+    const modifier = statusClass(normalized);
 
-    return `<span class="scan-status ${statusClass(normalized)}">${escapeHtml(normalized)}</span>`;
+    return `<span class="rv-badge${modifier ? ` rv-badge--${modifier}` : ""}">${escapeHtml(normalized)}</span>`;
 }
 
 function scanTargetText(scan) {
@@ -164,14 +165,16 @@ function setStreamState(state, label) {
 
 function renderScanType(type) {
     const normalized = String(type ?? "").toUpperCase();
-    return `<span class="scan-type-badge ${normalized.toLowerCase()}">${escapeHtml(normalized)}</span>`;
+    const modifier = normalized === "HOST" ? "host" : normalized === "PORT" ? "port" : "";
+
+    return `<span class="rv-badge${modifier ? ` rv-badge--${modifier}` : ""}">${escapeHtml(normalized)}</span>`;
 }
 
 function renderEmptyState() {
     content.innerHTML = `
-    <div class="scans-empty">
-    <h2>No scans found</h2>
-    <p>No scans have been created for this engagement yet.</p>
+    <div class="empty-state">
+        <h2>No scans found</h2>
+        <p>No scans have been created for this engagement yet.</p>
     </div>
     `;
 }
@@ -186,8 +189,8 @@ function renderScans() {
     }
 
     content.innerHTML = `
-    <div class="scans-table-wrap">
-    <table class="scans-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">Type</th>
@@ -209,7 +212,7 @@ function renderScans() {
         const outputAction = validId && scan.status !== "READY"
             ? `
             <button type="button"
-            class="btn btn-sm btn-outline-secondary rv-button"
+            class="btn btn-sm btn-outline-secondary"
             data-action="output"
             data-scan-id="${escapeHtml(scanId)}">${scan.status === "RUNNING" ? "Live output" : "View output"}</button>
             `
@@ -219,7 +222,7 @@ function renderScans() {
             ? `
         ${scan.status === "READY" ? `
             <button type="button"
-            class="btn btn-sm btn-outline-secondary rv-button"
+            class="btn btn-sm btn-outline-secondary"
             data-action="edit"
             data-scan-id="${escapeHtml(scanId)}">Edit</button>
             <button type="button"
@@ -237,7 +240,7 @@ function renderScans() {
             : "";
 
         const actions = outputAction || managementActions
-            ? `<div class="d-flex flex-wrap gap-2">${outputAction}${managementActions}</div>`
+            ? `<div class="cell-actions">${outputAction}${managementActions}</div>`
             : `<span class="text-muted">—</span>`;
 
         return `
@@ -293,7 +296,9 @@ async function loadScans({ silent = false } = {}) {
 function renderOutputMeta(status, errorMessage, scan) {
     const normalized = String(status ?? "UNKNOWN").toUpperCase();
 
-    outputStatus.className = `scan-status ${statusClass(normalized)}`;
+    const modifier = statusClass(normalized);
+
+    outputStatus.className = `rv-badge${modifier ? ` rv-badge--${modifier}` : ""}`;
     outputStatus.textContent = normalized;
 
     if (!scan) {
@@ -670,10 +675,10 @@ function toggleScanFields() {
 function createHostEntry() {
     const index = nextHostIndex++;
     const div = document.createElement("div");
-    div.className = "col-12 host-entry";
+    div.className = "scan-entry host-entry";
     div.dataset.index = index;
     div.innerHTML = `
-        <div class="input-group mb-2">
+        <div class="input-group">
             <select class="form-select host-ip-type" name="hosts[${index}][ip_type]" required>
                 <option value="IPV4">IPv4</option>
                 <option value="IPV6">IPv6</option>
@@ -704,10 +709,10 @@ function addHostEntry() {
 function createPortEntry() {
     const index = nextPortIndex++;
     const div = document.createElement("div");
-    div.className = "col-12 port-entry";
+    div.className = "scan-entry port-entry";
     div.dataset.index = index;
     div.innerHTML = `
-        <div class="row g-2 mb-2">
+        <div class="row g-2">
             <div class="col-md-3">
                 <label for="port-start-${index}" class="form-label visually-hidden">Start port</label>
                 <input id="port-start-${index}" name="ports[${index}][port_start]" class="form-control" type="number"

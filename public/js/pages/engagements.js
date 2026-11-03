@@ -72,200 +72,123 @@ function dateInputValue(value) {
 
 function renderCreateForm() {
     return `
-    <section class="create-engagement-box">
-    <button
-    type="button"
-    class="create-engagement-toggle"
-    id="create-engagement-toggle"
-    aria-expanded="false"
-    aria-controls="create-engagement-form"
-    >
-    <span>Create Engagement</span>
-    <span id="create-engagement-chevron" aria-hidden="true">+</span>
-    </button>
+    <section class="panel panel--spaced create-engagement-box">
+        <button
+            type="button"
+            class="panel-header create-engagement-toggle"
+            id="create-engagement-toggle"
+            aria-expanded="false"
+            aria-controls="create-engagement-form"
+        >
+            <span>Create engagement</span>
+            <span id="create-engagement-chevron" aria-hidden="true">+</span>
+        </button>
 
         <form id="create-engagement-form" hidden>
-        <div class="mb-3">
-        <label for="engagement-name" class="form-label">
-        Engagement Name
-        </label>
-        <input
-        type="text"
-        class="form-control"
-        id="engagement-name"
-        name="name"
-        required
-        >
-        </div>
+            <div class="panel-body">
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="engagement-name" class="form-label">Engagement name</label>
+                        <input type="text" class="form-control" id="engagement-name" name="name" required>
+                    </div>
 
-        <div class="mb-3">
-        <label for="engagement-description" class="form-label">
-        Description
-        </label>
-        <textarea
-        class="form-control"
-        id="engagement-description"
-        name="description"
-        rows="3"
-        ></textarea>
-        </div>
+                    <div class="col-12">
+                        <label for="engagement-description" class="form-label">Description</label>
+                        <textarea class="form-control" id="engagement-description" name="description"
+                            rows="3"></textarea>
+                    </div>
 
-        <div class="row">
-        <div class="col-md-6 mb-3">
-        <label for="engagement-start-date" class="form-label">
-        Start Date
-        </label>
-        <input
-        type="date"
-        class="form-control"
-        id="engagement-start-date"
-        name="start_date"
-        value="${todayDateValue()}"
-        required
-        >
-        </div>
+                    <div class="col-md-6">
+                        <label for="engagement-start-date" class="form-label">Start date</label>
+                        <input type="date" class="form-control" id="engagement-start-date" name="start_date"
+                            value="${todayDateValue()}" required>
+                    </div>
 
-        <div class="col-md-6 mb-3">
-        <label for="engagement-end-date" class="form-label">
-        End Date
-        </label>
-        <input
-        type="date"
-        class="form-control"
-        id="engagement-end-date"
-        name="end_date"
-        >
-        </div>
-        </div>
+                    <div class="col-md-6">
+                        <label for="engagement-end-date" class="form-label">End date</label>
+                        <input type="date" class="form-control" id="engagement-end-date" name="end_date">
+                    </div>
 
-        <div class="mb-3">
-        <label for="engagement-status" class="form-label">
-        Status
-        </label>
-        <select
-        class="form-select"
-        id="engagement-status"
-        name="status"
-        required
-        >
-        <option value="PLANNED" selected>Planned</option>
-        <option value="ACTIVE">Active</option>
-        <option value="COMPLETED">Completed</option>
-        <option value="CANCELLED">Cancelled</option>
-        </select>
-        </div>
+                    <div class="col-md-6">
+                        <label for="engagement-status" class="form-label">Status</label>
+                        <select class="form-select" id="engagement-status" name="status" required>
+                            <option value="PLANNED" selected>Planned</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-        <button
-        id="create-engagement-button"
-        type="submit"
-        class="btn btn-success"
-        >
-        Create Engagement
-        </button>
+            <div class="panel-footer">
+                <button id="create-engagement-button" type="submit" class="btn btn-primary">
+                    Create engagement
+                </button>
+            </div>
         </form>
-
     </section>
     `;
 }
 
 function renderEditForm() {
     return `
-    <section class="create-engagement-box" id="edit-engagement-box" hidden>
-    <div class="d-flex align-items-center justify-content-between mb-3">
-    <h2 class="h5 mb-0">Edit Engagement</h2>
-    <span class="text-muted small" id="edit-engagement-id-label"></span>
-    </div>
+    <section class="panel panel--spaced" id="edit-engagement-box" hidden>
+        <div class="panel-header">
+            <div>
+                <h2>Edit engagement</h2>
+                <p id="edit-engagement-id-label"></p>
+            </div>
+        </div>
 
         <form id="edit-engagement-form">
-        <input type="hidden" id="edit-engagement-id" name="engagement_id">
+            <div class="panel-body">
+                <input type="hidden" id="edit-engagement-id" name="engagement_id">
 
-        <div class="mb-3">
-        <label for="edit-engagement-name" class="form-label">
-        Engagement Name
-        </label>
-        <input
-        type="text"
-        class="form-control"
-        id="edit-engagement-name"
-        name="name"
-        required
-        >
-        </div>
+                <div class="row g-3">
+                    <div class="col-12">
+                        <label for="edit-engagement-name" class="form-label">Engagement name</label>
+                        <input type="text" class="form-control" id="edit-engagement-name" name="name" required>
+                    </div>
 
-        <div class="mb-3">
-        <label for="edit-engagement-description" class="form-label">
-        Description
-        </label>
-        <textarea
-        class="form-control"
-        id="edit-engagement-description"
-        name="description"
-        rows="3"
-        ></textarea>
-        </div>
+                    <div class="col-12">
+                        <label for="edit-engagement-description" class="form-label">Description</label>
+                        <textarea class="form-control" id="edit-engagement-description" name="description"
+                            rows="3"></textarea>
+                    </div>
 
-        <div class="row">
-        <div class="col-md-6 mb-3">
-        <label for="edit-engagement-start-date" class="form-label">
-        Start Date
-        </label>
-        <input
-        type="date"
-        class="form-control"
-        id="edit-engagement-start-date"
-        name="start_date"
-        required
-        >
-        </div>
+                    <div class="col-md-6">
+                        <label for="edit-engagement-start-date" class="form-label">Start date</label>
+                        <input type="date" class="form-control" id="edit-engagement-start-date" name="start_date"
+                            required>
+                    </div>
 
-        <div class="col-md-6 mb-3">
-        <label for="edit-engagement-end-date" class="form-label">
-        End Date
-        </label>
-        <input
-        type="date"
-        class="form-control"
-        id="edit-engagement-end-date"
-        name="end_date"
-        >
-        </div>
-        </div>
+                    <div class="col-md-6">
+                        <label for="edit-engagement-end-date" class="form-label">End date</label>
+                        <input type="date" class="form-control" id="edit-engagement-end-date" name="end_date">
+                    </div>
 
-        <div class="mb-3">
-        <label for="edit-engagement-status" class="form-label">
-        Status
-        </label>
-        <select
-        class="form-select"
-        id="edit-engagement-status"
-        name="status"
-        required
-        >
-        <option value="PLANNED">Planned</option>
-        <option value="ACTIVE">Active</option>
-        <option value="COMPLETED">Completed</option>
-        <option value="CANCELLED">Cancelled</option>
-        </select>
-        </div>
+                    <div class="col-md-6">
+                        <label for="edit-engagement-status" class="form-label">Status</label>
+                        <select class="form-select" id="edit-engagement-status" name="status" required>
+                            <option value="PLANNED">Planned</option>
+                            <option value="ACTIVE">Active</option>
+                            <option value="COMPLETED">Completed</option>
+                            <option value="CANCELLED">Cancelled</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
 
-        <div class="d-flex gap-2">
-        <button
-        id="edit-engagement-save"
-        type="submit"
-        class="btn btn-success"
-        >
-        Save Changes
-        </button>
-        <button
-        id="edit-engagement-cancel"
-        type="button"
-        class="btn btn-outline-secondary"
-        >
-        Cancel
-        </button>
-        </div>
+            <div class="panel-footer">
+                <button id="edit-engagement-cancel" type="button" class="btn btn-outline-secondary">
+                    Cancel
+                </button>
+                <button id="edit-engagement-save" type="submit" class="btn btn-primary">
+                    Save changes
+                </button>
+            </div>
         </form>
-
     </section>
     `;
 }
@@ -274,8 +197,8 @@ function renderList() {
     if (!engagements.length) {
         list.innerHTML = `
         <div class="empty-state">
-        <h2 class="h5">No engagements yet</h2>
-        <p class="text-muted mb-0">
+        <h2>No engagements yet</h2>
+        <p>
         Engagements you can access will appear here.
         </p>
         </div>
@@ -284,8 +207,11 @@ function renderList() {
     }
 
     list.innerHTML = `
-    <div class="table-responsive">
-    <table class="table align-middle">
+    <div class="list-count">
+    ${engagements.length} engagement${engagements.length === 1 ? "" : "s"}
+    </div>
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">Engagement</th>
@@ -330,12 +256,12 @@ function renderList() {
         return `
         <tr>
         <td>
-        <span class="fw-semibold">${escapeHtml(name)}</span>
+        <span class="cell-strong">${escapeHtml(name)}</span>
         </td>
         <td>${escapeHtml(description)}</td>
         <td>${escapeHtml(startDate)}</td>
-        <td class="text-end">
-        <div class="d-flex justify-content-end gap-2">
+        <td>
+        <div class="cell-actions">
         ${actions.join("")}
         </div>
         </td>

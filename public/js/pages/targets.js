@@ -84,18 +84,15 @@ function formatDate(value) {
 
 function renderStatus(status) {
     const normalized = String(status ?? "UNKNOWN").toUpperCase();
-    const statusClass =
-        normalized === "ACTIVE" ? "active" :
-            normalized === "INACTIVE" ? "inactive" : "";
 
-    return `<span class="target-status ${statusClass}">${escapeHtml(normalized)}</span>`;
+    return `<span class="rv-badge rv-badge--${normalized.toLowerCase()}">${escapeHtml(normalized)}</span>`;
 }
 
 function renderEmptyState() {
     content.innerHTML = `
-    <div class="targets-empty">
-    <h2>No targets found</h2>
-    <p>No targets have been added to this engagement yet.</p>
+    <div class="empty-state">
+        <h2>No targets found</h2>
+        <p>No targets have been added to this engagement yet.</p>
     </div>
     `;
 }
@@ -107,11 +104,11 @@ function renderTargets() {
     }
 
     content.innerHTML = `
-    <div class="targets-count">
+    <div class="list-count">
     ${targets.length} target${targets.length === 1 ? "" : "s"}
     </div>
-    <div class="targets-table-wrap">
-    <table class="targets-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">IP Address</th>
@@ -135,12 +132,12 @@ function renderTargets() {
 
         const actions = detailUrl
             ? `
-        <div class="d-flex flex-wrap gap-2">
-        <a class="btn btn-sm btn-outline-secondary rv-button"
+        <div class="cell-actions">
+        <a class="btn btn-sm btn-outline-secondary"
         href="${detailUrl}">View</a>
         ${isPentester ? `
             <button type="button"
-            class="btn btn-sm btn-outline-secondary rv-button"
+            class="btn btn-sm btn-outline-secondary"
             data-action="edit"
             data-target-id="${escapeHtml(targetId)}">Edit</button>
             <button type="button"

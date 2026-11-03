@@ -157,7 +157,7 @@ function renderRoleLabels(roles) {
 
     return names
         .map((role) =>
-            `<span class="status-pill">${esc(ROLE_LABELS[role] ?? role)}</span>`
+            `<span class="rv-badge">${esc(ROLE_LABELS[role] ?? role)}</span>`
         )
         .join(" ");
 }
@@ -172,8 +172,8 @@ function renderUsers() {
     if (!filtered.length) {
         $("#user-table-container").innerHTML = `
         <div class="empty-state">
-        <h3 class="h6">No users found</h3>
-        <p class="text-muted mb-0">
+        <h3>No users found</h3>
+        <p>
         Try a different search or create a user.
         </p>
         </div>`;
@@ -181,31 +181,33 @@ function renderUsers() {
     }
 
     $("#user-table-container").innerHTML = `
-    <div class="table-responsive">
-    <table class="table align-middle">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th>Username</th>
     <th>Status</th>
     <th>Roles</th>
     <th>User ID</th>
-    <th class="text-end">Actions</th>
+    <th>Actions</th>
     </tr>
     </thead>
     <tbody>
     ${filtered.map((user) => `
         <tr>
-        <td class="fw-semibold">${esc(user.username)}</td>
-        <td>${esc(user.status ?? "—")}</td>
+        <td class="cell-strong">${esc(user.username)}</td>
+        <td><span class="rv-badge">${esc(user.status ?? "—")}</span></td>
         <td>${renderRoleLabels(user.roles)}</td>
         <td>${esc(userId(user) ?? "—")}</td>
-        <td class="text-end">
+        <td>
+        <div class="cell-actions">
         <button
         type="button"
         class="btn btn-sm btn-outline-secondary"
         data-edit-user="${esc(userId(user))}">
         Edit
         </button>
+        </div>
         </td>
         </tr>
         `).join("")}

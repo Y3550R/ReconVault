@@ -1,3 +1,8 @@
+/*
+ * ReconVault design tokens.
+ * Every color, radius, control height and font stack used across the app
+ * should come from this file. Page stylesheets must not hard-code hex values.
+ */
 :root {
     color-scheme: dark;
 
@@ -5,23 +10,82 @@
     --rv-ink: #eef2ef;
     --rv-muted: #a1aca3;
     --rv-link: #83c997;
+    --rv-link-hover: #a4dcb4;
 
     /* Backgrounds */
     --rv-canvas: #202522;
     --rv-surface: #292f2b;
-    --rv-sidebar: #202522;
-    --rv-sidebar-muted: #a1aca3;
+    --rv-surface-raised: #303832;
+    --rv-surface-sunken: #161a18;
+    --rv-table-head: #252b27;
+    --rv-overlay: rgb(0 0 0 / 8%);
+    --rv-row-hover: rgb(255 255 255 / 3%);
 
     /* Borders */
     --rv-border: #414a43;
+    --rv-border-strong: #56655a;
 
-    /* Green accent */
+    /* Accent */
     --rv-primary: #4d9b67;
     --rv-primary-hover: #408457;
     --rv-primary-soft: #293f30;
+    --rv-primary-text: #a9e2b8;
+    --rv-on-primary: #ffffff;
+
+    /* Semantic tones */
+    --rv-success-border: #416e4e;
+    --rv-success-soft: #293f30;
+    --rv-success-text: #a9e2b8;
+
+    --rv-warning-border: #79683a;
+    --rv-warning-soft: #383321;
+    --rv-warning-text: #f0d58b;
+
+    --rv-orange-border: #875c3d;
+    --rv-orange-soft: #3d3025;
+    --rv-orange-text: #ffbf91;
+
+    --rv-danger-border: #8b4545;
+    --rv-danger-soft: #402626;
+    --rv-danger-text: #ffaaa5;
+    --rv-danger-action-border: #754747;
+    --rv-danger-action-text: #f0a3a3;
+    --rv-danger-action-hover-border: #a85a5a;
+    --rv-danger-action-hover-soft: #482d2d;
+    --rv-danger-action-hover-text: #ffd0d0;
+
+    --rv-info-border: #426a84;
+    --rv-info-soft: #243541;
+    --rv-info-text: #a9d9ff;
+
+    --rv-purple-border: #5a5a75;
+    --rv-purple-soft: #2f2f40;
+    --rv-purple-text: #c3b8f5;
+
+    --rv-neutral-border: #59656b;
+    --rv-neutral-soft: #30383c;
+    --rv-neutral-text: #c3cbd0;
 
     /* Layout */
     --rv-radius: 4px;
-    --rv-shadow: none;
+    --rv-radius-lg: 9px;
+    --rv-control-height: 42px;
+    --rv-page-max-width: 1440px;
+    --rv-page-padding: 28px;
     --rv-sidebar-width: 220px;
+    --rv-shadow: none;
+    --rv-focus-ring: rgb(77 155 103 / 25%);
+    --rv-popover-shadow: 0 8px 24px rgb(0 0 0 / 35%);
+    --rv-success-glow: 0 0 0 3px rgb(169 226 184 / 18%);
+
+    /* Typography */
+    --rv-font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    --rv-font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+
+    /* Backwards-compatible aliases */
+    --rv-background: var(--rv-canvas);
+    --rv-text: var(--rv-ink);
+    --rv-green: var(--rv-link);
+    --rv-sidebar: var(--rv-canvas);
+    --rv-sidebar-muted: var(--rv-muted);
 }

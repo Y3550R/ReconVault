@@ -1,23 +1,7 @@
-/* Shared application layout */
-:root {
-    --rv-background: var(--rv-canvas);
-    --rv-surface: #292f2b;
-    --rv-border: #414a43;
-    --rv-text: var(--rv-ink);
-    --rv-muted: #a1aca3;
-    --rv-green: var(--rv-link);
-}
-
-body {
-    margin: 0;
-    min-height: 100vh;
-    background: var(--rv-background);
-    color: var(--rv-text);
-}
-
+/* Shared application shell and header. */
 .app-shell {
-    min-height: 100vh;
     display: block;
+    min-height: 100vh;
 }
 
 .app-header {
@@ -27,38 +11,67 @@ body {
     align-items: center;
     gap: 24px;
     min-height: 64px;
-    padding: 0 28px;
-    background: var(--rv-background);
+    padding: 0 var(--rv-page-padding);
+    background: var(--rv-canvas);
     border-bottom: 1px solid var(--rv-border);
+}
+
+.brand-lockup {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--rv-ink);
+    font-size: 1.1rem;
+    font-weight: 750;
+    letter-spacing: -0.035em;
+}
+
+.brand-lockup:hover {
+    color: var(--rv-ink);
+}
+
+.brand-mark {
+    display: inline-flex;
+    width: 34px;
+    height: 34px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 10px;
+    background: var(--rv-primary);
+    color: var(--rv-on-primary);
+    font-weight: 800;
+}
+
+.brand-lockup-large {
+    font-size: 1.25rem;
+}
+
+.brand-lockup-large .brand-mark {
+    width: 42px;
+    height: 42px;
 }
 
 .brand-title {
     flex-shrink: 0;
-    color: var(--rv-text);
+    color: var(--rv-ink);
     font-size: 18px;
     font-weight: 600;
-    text-decoration: none;
 }
 
 .brand-title:hover {
-    color: var(--rv-green);
-}
-
-.button-spinner[hidden],
-.button-spinner.d-none {
-    display: none !important;
+    color: var(--rv-link);
 }
 
 .topbar-divider {
-    height: 26px;
     width: 1px;
+    height: 26px;
     background: var(--rv-border);
 }
 
 .topbar-tabs {
     display: flex;
-    align-items: stretch;
     align-self: stretch;
+    align-items: stretch;
     gap: 24px;
 }
 
@@ -67,17 +80,16 @@ body {
     align-items: center;
     color: var(--rv-muted);
     font-size: 14px;
-    text-decoration: none;
     border-bottom: 2px solid transparent;
 }
 
 .topbar-tab:hover {
-    color: var(--rv-text);
+    color: var(--rv-ink);
 }
 
 .topbar-tab.active {
-    color: #ffffff;
-    border-bottom-color: var(--rv-green);
+    color: var(--rv-ink);
+    border-bottom-color: var(--rv-link);
 }
 
 .profile-menu {
@@ -92,7 +104,7 @@ body {
     padding: 6px 0 6px 8px;
     border: 0;
     background: transparent;
-    color: var(--rv-text);
+    color: var(--rv-ink);
     cursor: pointer;
 }
 
@@ -105,9 +117,9 @@ body {
     width: 30px;
     height: 30px;
     flex-shrink: 0;
+    border: 1px solid var(--rv-border-strong);
     border-radius: 50%;
-    background: #39483d;
-    border: 1px solid #607765;
+    background: var(--rv-surface-raised);
 }
 
 .profile-chevron {
@@ -126,38 +138,39 @@ body {
     border-radius: 5px;
 }
 
-.profile-dropdown[hidden] {
-    display: none;
-}
-
 .profile-dropdown button {
     width: 100%;
     padding: 9px 10px;
-    text-align: left;
-    color: var(--rv-text);
-    background: transparent;
     border: 0;
     border-radius: 3px;
+    background: transparent;
+    color: var(--rv-ink);
+    text-align: left;
     cursor: pointer;
 }
 
 .profile-dropdown button:hover {
-    background: #39443c;
-    color: var(--rv-green);
+    background: var(--rv-surface-raised);
+    color: var(--rv-link);
+}
+
+.button-spinner[hidden],
+.button-spinner.d-none {
+    display: none !important;
 }
 
 .app-content {
     width: 100%;
-    max-width: 1400px;
+    max-width: var(--rv-page-max-width);
     margin: 0 auto;
-    padding: 28px;
+    padding: var(--rv-page-padding);
 }
 
 @media (max-width: 600px) {
     .app-header {
         gap: 14px;
-        padding: 0 14px;
         min-height: 58px;
+        padding: 0 14px;
     }
 
     .brand-title {
@@ -186,85 +199,4 @@ body {
     .app-content {
         padding: 20px 14px;
     }
-}
-
-/* Login page */
-.login-page {
-    min-height: 100vh;
-    margin: 0;
-    background: #202522;
-    color: #f0f4f1;
-}
-
-.login-container {
-    min-height: 100vh;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 24px;
-}
-
-.login-form {
-    width: 100%;
-    max-width: 340px;
-}
-
-.login-form h1 {
-    margin: 0 0 32px;
-    text-align: center;
-    font-size: 26px;
-    font-weight: 500;
-    color: #b8e6c5;
-}
-
-.login-form .form-group {
-    margin-bottom: 18px;
-}
-
-.login-form label {
-    display: block;
-    margin-bottom: 7px;
-    font-size: 14px;
-    color: #d5ddd7;
-}
-
-.login-form input {
-    box-sizing: border-box;
-    width: 100%;
-    padding: 11px 12px;
-    border: 1px solid #46534a;
-    border-radius: 4px;
-    background: #292f2b;
-    color: #f0f4f1;
-    font: inherit;
-    outline: none;
-}
-
-.login-form input:focus {
-    border-color: #79c991;
-}
-
-.login-form button {
-    width: 100%;
-    padding: 11px;
-    margin-top: 4px;
-    border: none;
-    border-radius: 4px;
-    background: #4d9b67;
-    color: #ffffff;
-    font: inherit;
-    font-weight: 600;
-    cursor: pointer;
-}
-
-.login-form button:hover {
-    background: #408457;
-}
-
-.login-form .login-help {
-    margin: 20px 0 0;
-    text-align: center;
-    font-size: 12px;
-    line-height: 1.5;
-    color: #a5b0a8;
 }

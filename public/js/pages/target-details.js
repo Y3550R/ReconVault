@@ -105,7 +105,7 @@ function renderStatus(status) {
         normalized === "ACTIVE" ? "active" :
             normalized === "INACTIVE" ? "inactive" : "";
 
-    statusElement.className = `target-status ${statusClass}`;
+    statusElement.className = `rv-badge${statusClass ? ` rv-badge--${statusClass}` : ""}`;
     statusElement.textContent = normalized;
 }
 
@@ -166,13 +166,13 @@ function renderServiceState(state) {
     const normalized = String(state ?? "UNKNOWN").toUpperCase();
     const stateClass = normalized.toLowerCase();
 
-    return `<span class="service-state ${escapeHtml(stateClass)}">${escapeHtml(normalized)}</span>`;
+    return `<span class="rv-badge rv-badge--state-${escapeHtml(stateClass)}">${escapeHtml(normalized)}</span>`;
 }
 
 function renderServices() {
     if (!services.length) {
         servicesContent.innerHTML = `
-        <div class="services-empty">
+        <div class="empty-state">
         <h3>No services found</h3>
         <p>No services have been recorded for this target.</p>
         ${isPentester
@@ -185,12 +185,12 @@ function renderServices() {
 
 
     servicesContent.innerHTML = `
-    <div class="services-count">
+    <div class="list-count">
     ${services.length} service${services.length === 1 ? "" : "s"}
     </div>
 
-    <div class="services-table-wrap">
-    <table class="services-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">Port</th>
@@ -225,10 +225,10 @@ function renderServices() {
         <td>
         ${validId
                 ? `
-            <div class="d-flex flex-wrap gap-2">
+            <div class="cell-actions">
             <button
             type="button"
-            class="btn btn-sm btn-outline-secondary rv-button"
+            class="btn btn-sm btn-outline-secondary"
             data-action="view"
             data-service-id="${escapeHtml(serviceId)}"
             >
@@ -239,7 +239,7 @@ function renderServices() {
                     ? `
                 <button
                 type="button"
-                class="btn btn-sm btn-outline-secondary rv-button"
+                class="btn btn-sm btn-outline-secondary"
                 data-action="edit"
                 data-service-id="${escapeHtml(serviceId)}"
                 >

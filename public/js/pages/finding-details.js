@@ -97,7 +97,7 @@ function severityBadge(severity) {
     const allowed = ["critical", "high", "medium", "low", "info"];
     const className = allowed.includes(value) ? value : "unknown";
 
-    return `<span class="finding-badge severity-${className}">${displayValue(severity)}</span>`;
+    return `<span class="rv-badge rv-badge--${className}">${displayValue(severity)}</span>`;
 }
 
 function statusBadge(status) {
@@ -105,7 +105,7 @@ function statusBadge(status) {
     const allowed = ["open", "in-progress", "resolved", "accepted"];
     const className = allowed.includes(value) ? value : "unknown";
 
-    return `<span class="finding-badge status-${className}">${displayValue(status)}</span>`;
+    return `<span class="rv-badge rv-badge--${className}">${displayValue(status)}</span>`;
 }
 
 function renderOverview() {
@@ -155,8 +155,8 @@ function renderLinkedTargets() {
     }
 
     el.targets.innerHTML = `
-    <div class="linked-assets-table-wrap">
-    <table class="findings-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">IP address</th>
@@ -174,7 +174,7 @@ function renderLinkedTargets() {
         <td>${displayValue(target.domain_name)}</td>
         <td>${displayValue(target.operating_system)}</td>
         <td>
-        <a class="btn btn-sm btn-outline-secondary rv-button"
+        <a class="btn btn-sm btn-outline-secondary"
         href="${targetDetailUrl(target.target_id)}">View target</a>
         </td>
         </tr>
@@ -195,8 +195,8 @@ function renderLinkedServices() {
     }
 
     el.services.innerHTML = `
-    <div class="linked-assets-table-wrap">
-    <table class="findings-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">Target IP</th>
@@ -218,7 +218,7 @@ function renderLinkedServices() {
         <td>${displayValue(service.version)}</td>
         <td>${displayValue(service.state)}</td>
         <td>
-        <a class="btn btn-sm btn-outline-secondary rv-button"
+        <a class="btn btn-sm btn-outline-secondary"
         href="${targetDetailUrl(service.target_id)}">View target</a>
         </td>
         </tr>

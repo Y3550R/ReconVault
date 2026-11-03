@@ -81,7 +81,7 @@ function severityBadge(severity) {
     const allowed = ["critical", "high", "medium", "low", "info"];
     const className = allowed.includes(value) ? value : "unknown";
 
-    return `<span class="finding-badge severity-${className}">${displayValue(severity)}</span>`;
+    return `<span class="rv-badge rv-badge--${className}">${displayValue(severity)}</span>`;
 }
 
 function statusBadge(status) {
@@ -89,7 +89,7 @@ function statusBadge(status) {
     const allowed = ["open", "in-progress", "resolved", "accepted"];
     const className = allowed.includes(value) ? value : "unknown";
 
-    return `<span class="finding-badge status-${className}">${displayValue(status)}</span>`;
+    return `<span class="rv-badge rv-badge--${className}">${displayValue(status)}</span>`;
 }
 
 function detailUrl(findingId) {
@@ -111,8 +111,8 @@ function renderFindings() {
     }
 
     elements.content.innerHTML = `
-    <div class="findings-table-wrap">
-    <table class="findings-table">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th scope="col">Severity</th>
@@ -143,12 +143,12 @@ function renderFindings() {
         <td>${statusBadge(finding.status)}</td>
         <td>${formatDate(finding.discovered_at)}</td>
         <td>
-        <div class="d-flex flex-wrap gap-2">
+        <div class="cell-actions">
         ${
             validId
             ? `
             <a
-            class="btn btn-sm btn-outline-secondary rv-button"
+            class="btn btn-sm btn-outline-secondary"
             href="${detailUrl(id)}"
             >View</a>
             ${
@@ -156,7 +156,7 @@ function renderFindings() {
                 ? `
                 <button
                 type="button"
-                class="btn btn-sm btn-outline-secondary rv-button"
+                class="btn btn-sm btn-outline-secondary"
                 data-action="edit"
                 data-finding-id="${escapeHtml(id)}"
                 >Edit</button>

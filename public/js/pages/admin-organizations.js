@@ -70,8 +70,8 @@ function renderOrganizations() {
     if (!filtered.length) {
         $("#organization-table-container").innerHTML = `
         <div class="empty-state">
-        <h3 class="h6">No organizations found</h3>
-        <p class="text-muted mb-0">
+        <h3>No organizations found</h3>
+        <p>
         Try a different search or create an organization.
         </p>
         </div>
@@ -80,27 +80,29 @@ function renderOrganizations() {
     }
 
     $("#organization-table-container").innerHTML = `
-    <div class="table-responsive">
-    <table class="table align-middle">
+    <div class="table-wrap">
+    <table class="data-table">
     <thead>
     <tr>
     <th>Organization</th>
     <th>Contact Information</th>
     <th>Organization ID</th>
-    <th class="text-end">Actions</th>
+    <th>Actions</th>
     </tr>
     </thead>
     <tbody>
     ${filtered.map((organization) => `
         <tr>
-        <td class="fw-semibold">${esc(organization.name)}</td>
+        <td class="cell-strong">${esc(organization.name)}</td>
         <td>${esc(organization.contact_information || "—")}</td>
         <td>${esc(organizationId(organization) ?? "—")}</td>
-        <td class="text-end">
+        <td>
+        <div class="cell-actions">
         <button
         class="btn btn-sm btn-outline-secondary"
         data-edit-organization="${esc(organizationId(organization))}"
         >Edit</button>
+        </div>
         </td>
         </tr>
         `).join("")}

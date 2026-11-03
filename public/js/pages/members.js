@@ -146,7 +146,7 @@ function createCombobox({ input, hidden, list, getItems }) {
     function setActive(index) {
         activeIndex = index;
 
-        const options = [...list.querySelectorAll(".members-combobox-option")];
+        const options = [...list.querySelectorAll(".combobox-option")];
 
         options.forEach((option, optionIndex) => {
             option.classList.toggle("is-active", optionIndex === index);
@@ -173,7 +173,7 @@ function createCombobox({ input, hidden, list, getItems }) {
 
         if (!visible.length) {
             const empty = document.createElement("li");
-            empty.className = "members-combobox-empty";
+            empty.className = "combobox-empty";
             empty.textContent = items.length
                 ? "No matching results."
                 : "Nothing available to add.";
@@ -182,7 +182,7 @@ function createCombobox({ input, hidden, list, getItems }) {
             visible.forEach((item, index) => {
                 const option = document.createElement("li");
                 option.id = `${list.id}-option-${index}`;
-                option.className = "members-combobox-option";
+                option.className = "combobox-option";
                 option.dataset.id = String(item.id);
                 option.setAttribute("role", "option");
                 option.setAttribute(
@@ -191,13 +191,13 @@ function createCombobox({ input, hidden, list, getItems }) {
                 );
 
                 const label = document.createElement("span");
-                label.className = "members-combobox-label";
+                label.className = "combobox-label";
                 label.textContent = item.label;
                 option.append(label);
 
                 if (item.meta) {
                     const meta = document.createElement("span");
-                    meta.className = "members-combobox-meta";
+                    meta.className = "combobox-meta";
                     meta.textContent = item.meta;
                     option.append(meta);
                 }
@@ -270,7 +270,7 @@ function createCombobox({ input, hidden, list, getItems }) {
     list.addEventListener("pointerdown", (event) => event.preventDefault());
     list.addEventListener("mousedown", (event) => event.preventDefault());
     list.addEventListener("click", (event) => {
-        const option = event.target.closest(".members-combobox-option");
+        const option = event.target.closest(".combobox-option");
 
         if (!option) return;
 
@@ -403,7 +403,7 @@ function renderRecords(container, records, type) {
             : "No client organizations are associated with this engagement.";
 
         container.append(
-            createTextElement("p", "members-empty-state", message)
+            createTextElement("p", "empty-state", message)
         );
 
         return;
@@ -464,10 +464,10 @@ async function loadPage() {
     if (!engagementId) {
         showAlert("Invalid engagement ID in the page URL.");
         elements.membersContent.replaceChildren(
-            createTextElement("p", "members-empty-state", "Unable to load members.")
+            createTextElement("p", "empty-state", "Unable to load members.")
         );
         elements.organizationsContent.replaceChildren(
-            createTextElement("p", "members-empty-state", "Unable to load organizations.")
+            createTextElement("p", "empty-state", "Unable to load organizations.")
         );
         return;
     }
