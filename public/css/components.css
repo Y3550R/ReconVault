@@ -399,6 +399,63 @@
 }
 
 /* ------------------------------------------------------------------ */
+/* Contributors                                                        */
+/* ------------------------------------------------------------------ */
+.contributor-list {
+    display: inline-flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.35rem;
+}
+
+.contributor-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--rv-border);
+    border-radius: 999px;
+    background: var(--rv-surface-raised);
+    color: var(--rv-ink);
+    font-size: 0.75rem;
+    font-weight: 600;
+    line-height: 1.3;
+    white-space: nowrap;
+}
+
+.contributor-chip::before {
+    content: "";
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: var(--rv-muted);
+}
+
+.contributor-chip--pentester {
+    border-color: var(--rv-success-border);
+    background: var(--rv-success-soft);
+    color: var(--rv-success-text);
+}
+
+.contributor-chip--pentester::before {
+    background: var(--rv-success-text);
+}
+
+.contributor-chip--scan {
+    border-color: var(--rv-info-border);
+    background: var(--rv-info-soft);
+    color: var(--rv-info-text);
+}
+
+.contributor-chip--scan::before {
+    background: var(--rv-info-text);
+}
+
+.contributor-empty {
+    color: var(--rv-muted);
+}
+
+/* ------------------------------------------------------------------ */
 /* Combobox                                                            */
 /* ------------------------------------------------------------------ */
 .combobox {

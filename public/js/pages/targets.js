@@ -2,6 +2,7 @@
 import { getCurrentUser, hasRole } from "../auth.js";
 import { api } from "../api.js";
 import { renderHeader } from "../layout.js";
+import { renderContributors } from "../contributors.js";
 
 const content = document.getElementById("targets-content");
 const alertBox = document.getElementById("targets-alert");
@@ -116,6 +117,7 @@ function renderTargets() {
     <th scope="col">Domain</th>
     <th scope="col">Operating System</th>
     <th scope="col">Status</th>
+    <th scope="col">Contributors</th>
     <th scope="col">Description</th>
     <th scope="col">Added</th>
     <th scope="col">Actions</th>
@@ -159,6 +161,7 @@ function renderTargets() {
             <td>${escapeHtml(target.domain_name || "—")}</td>
             <td>${escapeHtml(target.operating_system || "—")}</td>
             <td>${renderStatus(target.status)}</td>
+            <td class="cell-wrap">${renderContributors(target.contributors)}</td>
             <td class="target-description">${escapeHtml(target.description || "—")}</td>
             <td>${escapeHtml(formatDate(target.created_at))}</td>
             <td>${actions}</td>

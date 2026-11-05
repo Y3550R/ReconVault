@@ -2,6 +2,7 @@
 import { getCurrentUser, hasRole } from "../auth.js";
 import { api } from "../api.js";
 import { renderHeader } from "../layout.js";
+import { renderContributors } from "../contributors.js";
 
 const targetTitle = document.getElementById("target-page-title");
 const targetSubtitle = document.getElementById("target-page-subtitle");
@@ -155,6 +156,11 @@ function renderTargetDetails() {
             </div>
             `).join("")}
 
+            <div class="target-info-item">
+            <span class="target-info-label">Contributors</span>
+            <div class="target-info-value">${renderContributors(target.contributors)}</div>
+            </div>
+
             <div class="target-info-item target-description-item">
             <span class="target-info-label">Description</span>
             <div class="target-info-value target-full-description">${displayValue(target.description)}</div>
@@ -198,6 +204,7 @@ function renderServices() {
     <th scope="col">Protocol</th>
     <th scope="col">Version</th>
     <th scope="col">State</th>
+    <th scope="col">Contributors</th>
     <th scope="col">Actions</th>
     </tr>
     </thead>
@@ -222,6 +229,7 @@ function renderServices() {
         <td>${displayValue(service.protocol)}</td>
         <td>${displayValue(service.version)}</td>
         <td>${renderServiceState(service.state)}</td>
+        <td class="cell-wrap">${renderContributors(service.contributors)}</td>
         <td>
         ${validId
                 ? `
@@ -296,7 +304,12 @@ function renderServiceDetails(service) {
             ? "—"
             : escapeHtml(value)}</div>
         </div>
-        `).join("");
+        `).join("") + `
+    <div class="service-detail-item">
+    <span class="target-info-label">Contributors</span>
+    <div class="target-info-value">${renderContributors(service.contributors)}</div>
+    </div>
+    `;
 
     serviceDetailsPanel.hidden = false;
     serviceDetailsPanel.scrollIntoView({ behavior: "smooth", block: "start" });

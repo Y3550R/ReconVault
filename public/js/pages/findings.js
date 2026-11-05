@@ -1,5 +1,6 @@
 import { api } from "../api.js";
 import { getCurrentUser, hasRole } from "../auth.js";
+import { renderContributors } from "../contributors.js";
 
 const routeMatch = window.location.pathname.match(
     /\/engagements\/([1-9]\d*)\/findings\/?$/
@@ -118,6 +119,7 @@ function renderFindings() {
     <th scope="col">Severity</th>
     <th scope="col">Finding</th>
     <th scope="col">Status</th>
+    <th scope="col">Contributors</th>
     <th scope="col">Discovered</th>
     <th scope="col">Actions</th>
     </tr>
@@ -141,6 +143,7 @@ function renderFindings() {
         </div>
         </td>
         <td>${statusBadge(finding.status)}</td>
+        <td class="cell-wrap">${renderContributors(finding.contributors)}</td>
         <td>${formatDate(finding.discovered_at)}</td>
         <td>
         <div class="cell-actions">

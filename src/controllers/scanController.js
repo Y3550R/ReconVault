@@ -1,7 +1,6 @@
-import { query, execute, transaction, callProcedure } from "../db.js";
+import { query, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
 import { validateEnum, validatePort, validateIPv4OrCIDR, validateIPv6OrCIDR } from "../utils/validation.js";
-import { setCurrentUserId, clearCurrentUserId } from "../db.js";
 import { startScanExecution, cancelScanExecution, getRunningScanOutput } from "../services/scanExecutor.js";
 import { scanEvents } from "../services/scanEvents.js";
 
@@ -161,32 +160,36 @@ export const createScan = asyncHandler(async (req, res) => {
         throw new AppError("Engagement not found", 404, "NOT_FOUND");
     }
 
-    const result = await execute(
-        "INSERT INTO scans (engagement_id, creator_user_id, scan_type, status, description, target_ip_type, target_ip_address) VALUES (?, ?, ?, 'READY', ?, ?, ?)",
-        [engagementId, req.user.user_id, scan_type, description || null, target_ip_type || null, target_ip_address || null]
-    );
-
-    const scanId = result.insertId;
-
-    if (scan_type === "HOST" && hosts.length > 0) {
-        const hostValues = hosts.map(h => [scanId, h.ip_type, h.ip_address_or_cidr]);
-        const hostPlaceholders = hostValues.map(() => "(?, ?, ?)").join(", ");
-        const hostParams = hostValues.flat();
-        await execute(
-            `INSERT INTO scan_hosts (scan_id, ip_type, ip_address_or_cidr) VALUES ${hostPlaceholders}`,
-            hostParams
+    const scanId = await transaction(async (conn) => {
+        const [result] = await conn.execute(
+            "INSERT INTO scans (engagement_id, creator_user_id, scan_type, status, description, target_ip_type, target_ip_address) VALUES (?, ?, ?, 'READY', ?, ?, ?)",
+            [engagementId, req.user.user_id, scan_type, description || null, target_ip_type || null, target_ip_address || null]
         );
-    }
 
-    if (scan_type === "PORT" && ports.length > 0) {
-        const portValues = ports.map(p => [scanId, p.port_start, p.port_end, p.protocol || "TCP"]);
-        const portPlaceholders = portValues.map(() => "(?, ?, ?, ?)").join(", ");
-        const portParams = portValues.flat();
-        await execute(
-            `INSERT INTO scan_ports (scan_id, port_start, port_end, protocol) VALUES ${portPlaceholders}`,
-            portParams
-        );
-    }
+        const newScanId = result.insertId;
+
+        if (scan_type === "HOST" && hosts.length > 0) {
+            const hostValues = hosts.map(h => [newScanId, h.ip_type, h.ip_address_or_cidr]);
+            const hostPlaceholders = hostValues.map(() => "(?, ?, ?)").join(", ");
+            const hostParams = hostValues.flat();
+            await conn.execute(
+                `INSERT INTO scan_hosts (scan_id, ip_type, ip_address_or_cidr) VALUES ${hostPlaceholders}`,
+                hostParams
+            );
+        }
+
+        if (scan_type === "PORT" && ports.length > 0) {
+            const portValues = ports.map(p => [newScanId, p.port_start, p.port_end, p.protocol || "TCP"]);
+            const portPlaceholders = portValues.map(() => "(?, ?, ?, ?)").join(", ");
+            const portParams = portValues.flat();
+            await conn.execute(
+                `INSERT INTO scan_ports (scan_id, port_start, port_end, protocol) VALUES ${portPlaceholders}`,
+                portParams
+            );
+        }
+
+        return newScanId;
+    });
 
     const scan = await query("SELECT * FROM scans WHERE scan_id = ?", [scanId]);
     const scanHosts = await query("SELECT * FROM scan_hosts WHERE scan_id = ? ORDER BY scan_host_id", [scanId]);
@@ -307,37 +310,39 @@ export const updateScan = asyncHandler(async (req, res) => {
         params.push(target_ip_address);
     }
 
-    if (updates.length > 0) {
-        updates.push("updated_at = NOW()");
-        params.push(scanId);
-        await execute(`UPDATE scans SET ${updates.join(", ")} WHERE scan_id = ?`, params);
-    }
-
-    if (hosts !== undefined) {
-        await execute("DELETE FROM scan_hosts WHERE scan_id = ?", [scanId]);
-        if (hosts.length > 0) {
-            const hostValues = hosts.map(h => [scanId, h.ip_type, h.ip_address_or_cidr]);
-            const hostPlaceholders = hostValues.map(() => "(?, ?, ?)").join(", ");
-            const hostParams = hostValues.flat();
-            await execute(
-                `INSERT INTO scan_hosts (scan_id, ip_type, ip_address_or_cidr) VALUES ${hostPlaceholders}`,
-                hostParams
-            );
+    await transaction(async (conn) => {
+        if (updates.length > 0) {
+            updates.push("updated_at = NOW()");
+            params.push(scanId);
+            await conn.execute(`UPDATE scans SET ${updates.join(", ")} WHERE scan_id = ?`, params);
         }
-    }
 
-    if (ports !== undefined) {
-        await execute("DELETE FROM scan_ports WHERE scan_id = ?", [scanId]);
-        if (ports.length > 0) {
-            const portValues = ports.map(p => [scanId, p.port_start, p.port_end, p.protocol || "TCP"]);
-            const portPlaceholders = portValues.map(() => "(?, ?, ?, ?)").join(", ");
-            const portParams = portValues.flat();
-            await execute(
-                `INSERT INTO scan_ports (scan_id, port_start, port_end, protocol) VALUES ${portPlaceholders}`,
-                portParams
-            );
+        if (hosts !== undefined) {
+            await conn.execute("DELETE FROM scan_hosts WHERE scan_id = ?", [scanId]);
+            if (hosts.length > 0) {
+                const hostValues = hosts.map(h => [scanId, h.ip_type, h.ip_address_or_cidr]);
+                const hostPlaceholders = hostValues.map(() => "(?, ?, ?)").join(", ");
+                const hostParams = hostValues.flat();
+                await conn.execute(
+                    `INSERT INTO scan_hosts (scan_id, ip_type, ip_address_or_cidr) VALUES ${hostPlaceholders}`,
+                    hostParams
+                );
+            }
         }
-    }
+
+        if (ports !== undefined) {
+            await conn.execute("DELETE FROM scan_ports WHERE scan_id = ?", [scanId]);
+            if (ports.length > 0) {
+                const portValues = ports.map(p => [scanId, p.port_start, p.port_end, p.protocol || "TCP"]);
+                const portPlaceholders = portValues.map(() => "(?, ?, ?, ?)").join(", ");
+                const portParams = portValues.flat();
+                await conn.execute(
+                    `INSERT INTO scan_ports (scan_id, port_start, port_end, protocol) VALUES ${portPlaceholders}`,
+                    portParams
+                );
+            }
+        }
+    });
 
     const scanUpdated = await query("SELECT * FROM scans WHERE scan_id = ?", [scanId]);
     const scanHosts = await query("SELECT * FROM scan_hosts WHERE scan_id = ? ORDER BY scan_host_id", [scanId]);

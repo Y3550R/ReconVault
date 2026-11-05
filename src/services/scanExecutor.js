@@ -4,7 +4,7 @@ import { promises as fs } from "node:fs";
 import { isIP } from "node:net";
 import os from "node:os";
 import path from "node:path";
-import { query, execute } from "../db.js";
+import { query, execute, transaction } from "../db.js";
 import { config } from "../config/index.js";
 import { AppError } from "../middleware/errorHandler.js";
 import { scanEvents } from "./scanEvents.js";
@@ -658,142 +658,150 @@ async function parseAndStoreResults(scanId, engagementId, xmlOutput) {
   ? nmapRun.host
   : [nmapRun.host];
 
-  const contributorResult = await execute(
-    `INSERT INTO contributors (contributor_type, scan_id)
-    VALUES ('SCAN', ?)`,
-                                          [scanId]
-  );
+  await transaction(async (conn) => {
+    // Scan-driven writes must not be attributed to a pentester. A pooled
+    // connection may still hold a stale @current_user_id, so reset it on the
+    // same connection used for the writes. Contributors are linked explicitly
+    // to the scan below.
+    await conn.query("SET @current_user_id = NULL");
 
-  const contributorId = contributorResult.insertId;
-
-  for (const host of hosts) {
-    if (host.status?.state !== "up") continue;
-
-    const addresses = Array.isArray(host.address)
-    ? host.address
-    : [host.address].filter(Boolean);
-
-    const ipAddr = addresses.find(
-      (address) =>
-      address.addrtype === "ipv4" ||
-      address.addrtype === "ipv6"
+    const [contributorResult] = await conn.execute(
+      `INSERT INTO contributors (contributor_type, scan_id)
+       VALUES ('SCAN', ?)`,
+      [scanId]
     );
 
-    if (!ipAddr?.addr) continue;
+    const contributorId = contributorResult.insertId;
 
-    const ipType = ipAddr.addrtype === "ipv6" ? "IPV6" : "IPV4";
-    const ipAddress = ipAddr.addr;
+    for (const host of hosts) {
+      if (host.status?.state !== "up") continue;
 
-    let hostname = null;
-    if (host.hostnames?.hostname) {
-      const names = Array.isArray(host.hostnames.hostname)
-      ? host.hostnames.hostname
-      : [host.hostnames.hostname];
+      const addresses = Array.isArray(host.address)
+        ? host.address
+        : [host.address].filter(Boolean);
 
-      hostname = names[0]?.name ?? null;
-    }
+      const ipAddr = addresses.find(
+        (address) =>
+          address.addrtype === "ipv4" ||
+          address.addrtype === "ipv6"
+      );
 
-    let osName = null;
-    if (host.os?.osmatch) {
-      const matches = Array.isArray(host.os.osmatch)
-      ? host.os.osmatch
-      : [host.os.osmatch];
+      if (!ipAddr?.addr) continue;
 
-      osName = matches[0]?.name ?? null;
-    }
+      const ipType = ipAddr.addrtype === "ipv6" ? "IPV6" : "IPV4";
+      const ipAddress = ipAddr.addr;
 
-    // IMPORTANT: use engagementId, not scanId.
-    await execute(
-      `INSERT INTO targets
-      (engagement_id, ip_type, ip_address, hostname, operating_system, status)
-      VALUES (?, ?, ?, ?, ?, 'ACTIVE')
-      ON DUPLICATE KEY UPDATE
-      hostname = VALUES(hostname),
-                  operating_system = VALUES(operating_system),
-                  status = 'ACTIVE',
-                  updated_at = NOW()`,
-                  [engagementId, ipType, ipAddress, hostname, osName]
-    );
+      let hostname = null;
+      if (host.hostnames?.hostname) {
+        const names = Array.isArray(host.hostnames.hostname)
+          ? host.hostnames.hostname
+          : [host.hostnames.hostname];
 
-    // Query the ID explicitly; affectedRows/insertId behavior varies
-    // by MySQL driver and connection options.
-    const targetRows = await query(
-      `SELECT target_id
-      FROM targets
-      WHERE engagement_id = ? AND ip_address = ? AND ip_type = ?
-      LIMIT 1`,
-      [engagementId, ipAddress, ipType]
-    );
-
-    const targetId = targetRows[0]?.target_id;
-    if (!targetId) {
-      throw new Error(`Could not retrieve target ID for ${ipAddress}`);
-    }
-
-    await execute(
-      `INSERT IGNORE INTO target_contributors (contributor_id, target_id)
-      VALUES (?, ?)`,
-                  [contributorId, targetId]
-    );
-
-    if (!host.ports?.port) continue;
-
-    const ports = Array.isArray(host.ports.port)
-    ? host.ports.port
-    : [host.ports.port];
-
-    for (const port of ports) {
-      if (port.state?.state !== "open") continue;
-
-      const portNum = Number.parseInt(port.portid, 10);
-      const protocol = String(port.protocol ?? "tcp").toUpperCase();
-
-      if (
-        !Number.isInteger(portNum) ||
-        portNum < 1 ||
-        portNum > 65535 ||
-        !["TCP", "UDP", "SCTP"].includes(protocol)
-      ) {
-        continue;
+        hostname = names[0]?.name ?? null;
       }
 
-      const serviceName = port.service?.name || "unknown";
-      const serviceVersion = port.service?.version || null;
+      let osName = null;
+      if (host.os?.osmatch) {
+        const matches = Array.isArray(host.os.osmatch)
+          ? host.os.osmatch
+          : [host.os.osmatch];
 
-      await execute(
-        `INSERT INTO services
-        (target_id, name, port, protocol, version, state)
-        VALUES (?, ?, ?, ?, ?, 'OPEN')
-        ON DUPLICATE KEY UPDATE
-        name = VALUES(name),
-                    version = VALUES(version),
-                    state = 'OPEN',
-                    updated_at = NOW()`,
-                    [targetId, serviceName, portNum, protocol, serviceVersion]
+        osName = matches[0]?.name ?? null;
+      }
+
+      // IMPORTANT: use engagementId, not scanId.
+      await conn.execute(
+        `INSERT INTO targets
+         (engagement_id, ip_type, ip_address, hostname, operating_system, status)
+         VALUES (?, ?, ?, ?, ?, 'ACTIVE')
+         ON DUPLICATE KEY UPDATE
+           hostname = VALUES(hostname),
+           operating_system = VALUES(operating_system),
+           status = 'ACTIVE',
+           updated_at = NOW()`,
+        [engagementId, ipType, ipAddress, hostname, osName]
       );
 
-      const serviceRows = await query(
-        `SELECT service_id
-        FROM services
-        WHERE target_id = ? AND port = ? AND protocol = ?
-        LIMIT 1`,
-        [targetId, portNum, protocol]
+      // Query the ID explicitly; affectedRows/insertId behavior varies
+      // by MySQL driver and connection options.
+      const [targetRows] = await conn.execute(
+        `SELECT target_id
+         FROM targets
+         WHERE engagement_id = ? AND ip_address = ? AND ip_type = ?
+         LIMIT 1`,
+        [engagementId, ipAddress, ipType]
       );
 
-      const serviceId = serviceRows[0]?.service_id;
-      if (!serviceId) {
-        throw new Error(
-          `Could not retrieve service ID for target ${targetId}, port ${portNum}`
+      const targetId = targetRows[0]?.target_id;
+      if (!targetId) {
+        throw new Error(`Could not retrieve target ID for ${ipAddress}`);
+      }
+
+      await conn.execute(
+        `INSERT IGNORE INTO target_contributors (contributor_id, target_id)
+         VALUES (?, ?)`,
+        [contributorId, targetId]
+      );
+
+      if (!host.ports?.port) continue;
+
+      const ports = Array.isArray(host.ports.port)
+        ? host.ports.port
+        : [host.ports.port];
+
+      for (const port of ports) {
+        if (port.state?.state !== "open") continue;
+
+        const portNum = Number.parseInt(port.portid, 10);
+        const protocol = String(port.protocol ?? "tcp").toUpperCase();
+
+        if (
+          !Number.isInteger(portNum) ||
+          portNum < 1 ||
+          portNum > 65535 ||
+          !["TCP", "UDP", "SCTP"].includes(protocol)
+        ) {
+          continue;
+        }
+
+        const serviceName = port.service?.name || "unknown";
+        const serviceVersion = port.service?.version || null;
+
+        await conn.execute(
+          `INSERT INTO services
+           (target_id, name, port, protocol, version, state)
+           VALUES (?, ?, ?, ?, ?, 'OPEN')
+           ON DUPLICATE KEY UPDATE
+             name = VALUES(name),
+             version = VALUES(version),
+             state = 'OPEN',
+             updated_at = NOW()`,
+          [targetId, serviceName, portNum, protocol, serviceVersion]
+        );
+
+        const [serviceRows] = await conn.execute(
+          `SELECT service_id
+           FROM services
+           WHERE target_id = ? AND port = ? AND protocol = ?
+           LIMIT 1`,
+          [targetId, portNum, protocol]
+        );
+
+        const serviceId = serviceRows[0]?.service_id;
+        if (!serviceId) {
+          throw new Error(
+            `Could not retrieve service ID for target ${targetId}, port ${portNum}`
+          );
+        }
+
+        await conn.execute(
+          `INSERT IGNORE INTO service_contributors (contributor_id, service_id)
+           VALUES (?, ?)`,
+          [contributorId, serviceId]
         );
       }
-
-      await execute(
-        `INSERT IGNORE INTO service_contributors (contributor_id, service_id)
-        VALUES (?, ?)`,
-                    [contributorId, serviceId]
-      );
     }
-  }
+  });
 }
 
 export async function recoverOrphanedScans() {

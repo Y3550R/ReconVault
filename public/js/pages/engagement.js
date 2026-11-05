@@ -1,6 +1,7 @@
 
 import { api } from "../api.js";
 import { getCurrentUser, hasRole } from "../auth.js";
+import { renderContributors } from "../contributors.js";
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -180,6 +181,13 @@ function createBadge(text, className) {
     return badge;
 }
 
+function createContributorsCell(contributors) {
+    const cell = document.createElement("td");
+    cell.className = "cell-wrap";
+    cell.innerHTML = renderContributors(contributors);
+    return cell;
+}
+
 function createFindingRow(finding) {
     const row = document.createElement("tr");
     const severity = getSeverity(finding);
@@ -219,6 +227,7 @@ function createFindingRow(finding) {
         severityCell,
         titleCell,
         statusCell,
+        createContributorsCell(finding.contributors),
         createCell(formatDate(finding.discovered_at ?? finding.created_at))
     );
 

@@ -68,12 +68,12 @@
 
 | Trigger | Table | Timing | Event | Action |
 |---------|-------|--------|-------|--------|
-| `trg_target_after_insert` | targets | AFTER | INSERT | Insert PENTESTER contributor + target_contributors link |
-| `trg_target_after_update` | targets | AFTER | UPDATE | Insert PENTESTER contributor + target_contributors link |
-| `trg_service_after_insert` | services | AFTER | INSERT | Insert PENTESTER contributor + service_contributors link |
-| `trg_service_after_update` | services | AFTER | UPDATE | Insert PENTESTER contributor + service_contributors link |
-| `trg_finding_after_insert` | findings | AFTER | INSERT | Insert PENTESTER contributor + finding_contributors link |
-| `trg_finding_after_update` | findings | AFTER | UPDATE | Insert PENTESTER contributor + finding_contributors link |
+| `trg_target_after_insert` | targets | AFTER | INSERT | Insert PENTESTER contributor + link when `@current_user_id` is set |
+| `trg_target_after_update` | targets | AFTER | UPDATE | Insert PENTESTER contributor + link when `@current_user_id` is set |
+| `trg_service_after_insert` | services | AFTER | INSERT | Insert PENTESTER contributor + link when `@current_user_id` is set |
+| `trg_service_after_update` | services | AFTER | UPDATE | Insert PENTESTER contributor + link when `@current_user_id` is set |
+| `trg_finding_after_insert` | findings | AFTER | INSERT | Insert PENTESTER contributor + link when `@current_user_id` is set |
+| `trg_finding_after_update` | findings | AFTER | UPDATE | Insert PENTESTER contributor + link when `@current_user_id` is set |
 | `trg_scan_before_update` | scans | BEFORE | UPDATE | Set `finished_at = NOW()` on status → COMPLETED/FAILED/CANCELLED |
 
 **Usage**: App must set `@current_user_id` before writes:
@@ -81,7 +81,7 @@
 SET @current_user_id = <user_id>;
 ```
 
-**Note**: Triggers only create PENTESTER contributors. SCAN contributors are created explicitly by application code during scan execution (see `scanExecutor.js`), then linked to targets/services via `target_contributors`/`service_contributors`.
+**Note**: Triggers only create PENTESTER contributors when `@current_user_id` is set. Scan-driven writes set it to `NULL` and link SCAN contributors explicitly during scan execution (see `scanExecutor.js`), so scan-created targets/services do not also receive a bogus PENTESTER contributor.
 
 ---
 

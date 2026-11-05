@@ -1,6 +1,7 @@
 
 import { api } from "../api.js";
 import { getCurrentUser, hasRole } from "../auth.js";
+import { renderContributors } from "../contributors.js";
 
 const routeMatch = window.location.pathname.match(
     /\/engagements\/([1-9]\d*)\/findings\/([1-9]\d*)\/?$/
@@ -127,7 +128,12 @@ function renderOverview() {
     <span class="finding-detail-label">${escapeHtml(label)}</span>
     <span class="finding-detail-value">${displayValue(value)}</span>
     </div>
-    `).join("");
+    `).join("") + `
+    <div class="finding-detail-item">
+    <span class="finding-detail-label">Contributors</span>
+    <span class="finding-detail-value">${renderContributors(finding.contributors)}</span>
+    </div>
+    `;
 
     el.badges.innerHTML =
     `${severityBadge(finding.severity)} ${statusBadge(finding.status)}`;
@@ -163,6 +169,7 @@ function renderLinkedTargets() {
     <th scope="col">Hostname</th>
     <th scope="col">Domain</th>
     <th scope="col">Operating system</th>
+    <th scope="col">Contributors</th>
     <th scope="col">Actions</th>
     </tr>
     </thead>
@@ -173,6 +180,7 @@ function renderLinkedTargets() {
         <td>${displayValue(target.hostname)}</td>
         <td>${displayValue(target.domain_name)}</td>
         <td>${displayValue(target.operating_system)}</td>
+        <td class="cell-wrap">${renderContributors(target.contributors)}</td>
         <td>
         <a class="btn btn-sm btn-outline-secondary"
         href="${targetDetailUrl(target.target_id)}">View target</a>
@@ -205,6 +213,7 @@ function renderLinkedServices() {
     <th scope="col">Protocol</th>
     <th scope="col">Version</th>
     <th scope="col">State</th>
+    <th scope="col">Contributors</th>
     <th scope="col">Actions</th>
     </tr>
     </thead>
@@ -217,6 +226,7 @@ function renderLinkedServices() {
         <td>${displayValue(service.protocol)}</td>
         <td>${displayValue(service.version)}</td>
         <td>${displayValue(service.state)}</td>
+        <td class="cell-wrap">${renderContributors(service.contributors)}</td>
         <td>
         <a class="btn btn-sm btn-outline-secondary"
         href="${targetDetailUrl(service.target_id)}">View target</a>

@@ -67,27 +67,31 @@ export const createUser = asyncHandler(async (req, res) => {
     throw new AppError("Invalid status", 400, "VALIDATION_ERROR");
   }
 
-  const result = await execute(
-    "INSERT INTO users (username, password_hash, status) VALUES (?, ?, ?)",
-    [username, passwordHash, userStatus]
-  );
+  const userId = await transaction(async (conn) => {
+    const [result] = await conn.execute(
+      "INSERT INTO users (username, password_hash, status) VALUES (?, ?, ?)",
+      [username, passwordHash, userStatus]
+    );
 
-  const userId = result.insertId;
+    const newUserId = result.insertId;
 
-  if (roles?.includes("admin")) {
-    await execute("INSERT INTO administrators (user_id) VALUES (?)", [userId]);
-  }
-  if (roles?.includes("pentester")) {
-    await execute("INSERT INTO pentesters (user_id) VALUES (?)", [userId]);
-  }
-  if (roles?.includes("client")) {
-    const { client_organization_id } = req.body;
-    if (client_organization_id) {
-      await execute("INSERT INTO clients (user_id, client_organization_id) VALUES (?, ?)", [userId, client_organization_id]);
-    } else {
-      await execute("INSERT INTO clients (user_id) VALUES (?)", [userId]);
+    if (roles?.includes("admin")) {
+      await conn.execute("INSERT INTO administrators (user_id) VALUES (?)", [newUserId]);
     }
-  }
+    if (roles?.includes("pentester")) {
+      await conn.execute("INSERT INTO pentesters (user_id) VALUES (?)", [newUserId]);
+    }
+    if (roles?.includes("client")) {
+      const { client_organization_id } = req.body;
+      if (client_organization_id) {
+        await conn.execute("INSERT INTO clients (user_id, client_organization_id) VALUES (?, ?)", [newUserId, client_organization_id]);
+      } else {
+        await conn.execute("INSERT INTO clients (user_id) VALUES (?)", [newUserId]);
+      }
+    }
+
+    return newUserId;
+  });
 
   const user = await query(
     `SELECT u.*,
@@ -145,40 +149,42 @@ export const updateUser = asyncHandler(async (req, res) => {
     updateValues.push(passwordHash);
   }
 
-  if (updateFields.length > 0) {
-    updateValues.push(userId);
-    await execute(`UPDATE users SET ${updateFields.join(", ")} WHERE user_id = ?`, updateValues);
-  }
-
-  if (roles) {
-    const currentRoles = await query(
-      `SELECT
-         EXISTS(SELECT 1 FROM administrators WHERE user_id = ?) AS is_admin,
-         EXISTS(SELECT 1 FROM pentesters WHERE user_id = ?) AS is_pentester,
-         EXISTS(SELECT 1 FROM clients WHERE user_id = ?) AS is_client
-       `,
-      [userId, userId, userId]
-    );
-
-    if (roles.includes("admin") && !currentRoles[0].is_admin) {
-      await execute("INSERT INTO administrators (user_id) VALUES (?)", [userId]);
-    } else if (!roles.includes("admin") && currentRoles[0].is_admin) {
-      await execute("DELETE FROM administrators WHERE user_id = ?", [userId]);
+  await transaction(async (conn) => {
+    if (updateFields.length > 0) {
+      updateValues.push(userId);
+      await conn.execute(`UPDATE users SET ${updateFields.join(", ")} WHERE user_id = ?`, updateValues);
     }
 
-    if (roles.includes("pentester") && !currentRoles[0].is_pentester) {
-      await execute("INSERT INTO pentesters (user_id) VALUES (?)", [userId]);
-    } else if (!roles.includes("pentester") && currentRoles[0].is_pentester) {
-      await execute("DELETE FROM pentesters WHERE user_id = ?", [userId]);
-    }
+    if (roles) {
+      const [currentRoles] = await conn.execute(
+        `SELECT
+           EXISTS(SELECT 1 FROM administrators WHERE user_id = ?) AS is_admin,
+           EXISTS(SELECT 1 FROM pentesters WHERE user_id = ?) AS is_pentester,
+           EXISTS(SELECT 1 FROM clients WHERE user_id = ?) AS is_client
+         `,
+        [userId, userId, userId]
+      );
 
-    if (roles.includes("client") && !currentRoles[0].is_client) {
-      const { client_organization_id } = req.body;
-      await execute("INSERT INTO clients (user_id, client_organization_id) VALUES (?, ?)", [userId, client_organization_id || null]);
-    } else if (!roles.includes("client") && currentRoles[0].is_client) {
-      await execute("DELETE FROM clients WHERE user_id = ?", [userId]);
+      if (roles.includes("admin") && !currentRoles[0].is_admin) {
+        await conn.execute("INSERT INTO administrators (user_id) VALUES (?)", [userId]);
+      } else if (!roles.includes("admin") && currentRoles[0].is_admin) {
+        await conn.execute("DELETE FROM administrators WHERE user_id = ?", [userId]);
+      }
+
+      if (roles.includes("pentester") && !currentRoles[0].is_pentester) {
+        await conn.execute("INSERT INTO pentesters (user_id) VALUES (?)", [userId]);
+      } else if (!roles.includes("pentester") && currentRoles[0].is_pentester) {
+        await conn.execute("DELETE FROM pentesters WHERE user_id = ?", [userId]);
+      }
+
+      if (roles.includes("client") && !currentRoles[0].is_client) {
+        const { client_organization_id } = req.body;
+        await conn.execute("INSERT INTO clients (user_id, client_organization_id) VALUES (?, ?)", [userId, client_organization_id || null]);
+      } else if (!roles.includes("client") && currentRoles[0].is_client) {
+        await conn.execute("DELETE FROM clients WHERE user_id = ?", [userId]);
+      }
     }
-  }
+  });
 
   const updated = await query(
     `SELECT u.*,
@@ -226,7 +232,7 @@ export const addRole = asyncHandler(async (req, res) => {
   } else if (role === "pentester") {
     await execute("INSERT IGNORE INTO pentesters (user_id) VALUES (?)", [userId]);
   } else if (role === "client") {
-    await execute("INSERT IGNORE INTO clients (user_id) VALUES (?, ?)", [userId]);
+    await execute("INSERT IGNORE INTO clients (user_id) VALUES (?)", [userId]);
   }
 
   res.json({ success: true });

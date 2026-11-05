@@ -38,17 +38,24 @@ export const createEngagement = asyncHandler(async (req, res) => {
     throw new AppError("Invalid status", 400, "VALIDATION_ERROR");
   }
 
-  const result = await execute(
-    "INSERT INTO engagements (name, description, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)",
-    [sanitizeString(name, 150), sanitizeString(description, 1000), start_date, end_date || null, status || "PLANNED"]
-  );
+  const engagementId = await transaction(async (conn) => {
+    const [result] = await conn.execute(
+      "INSERT INTO engagements (name, description, start_date, end_date, status) VALUES (?, ?, ?, ?, ?)",
+      [sanitizeString(name, 150), sanitizeString(description, 1000), start_date, end_date || null, status || "PLANNED"]
+    );
 
-  const engagementId = result.insertId;
+    const newEngagementId = result.insertId;
 
-  // Automatically add creator as a member (pentester) if they have pentester role
-  if (req.user.roles.isPentester) {
-    await execute("INSERT INTO engagement_members (engagement_id, user_id) VALUES (?, ?)", [engagementId, req.user.user_id]);
-  }
+    // Automatically add creator as a member (pentester) if they have pentester role
+    if (req.user.roles.isPentester) {
+      await conn.execute(
+        "INSERT INTO engagement_members (engagement_id, user_id) VALUES (?, ?)",
+        [newEngagementId, req.user.user_id]
+      );
+    }
+
+    return newEngagementId;
+  });
 
   const engagement = await query("SELECT * FROM engagements WHERE engagement_id = ?", [engagementId]);
   res.status(201).json({ engagement: engagement[0] });

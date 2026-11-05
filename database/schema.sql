@@ -318,43 +318,55 @@ DELIMITER $$
 -- Target contributors (INSERT)
 CREATE TRIGGER `trg_target_after_insert` AFTER INSERT ON `targets`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `target_contributors` (`contributor_id`, `target_id`) VALUES (LAST_INSERT_ID(), NEW.target_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `target_contributors` (`contributor_id`, `target_id`) VALUES (LAST_INSERT_ID(), NEW.target_id);
+    END IF;
 END$$
 
 -- Target contributors (UPDATE)
 CREATE TRIGGER `trg_target_after_update` AFTER UPDATE ON `targets`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `target_contributors` (`contributor_id`, `target_id`) VALUES (LAST_INSERT_ID(), NEW.target_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `target_contributors` (`contributor_id`, `target_id`) VALUES (LAST_INSERT_ID(), NEW.target_id);
+    END IF;
 END$$
 
 -- Service contributors (INSERT)
 CREATE TRIGGER `trg_service_after_insert` AFTER INSERT ON `services`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `service_contributors` (`contributor_id`, `service_id`) VALUES (LAST_INSERT_ID(), NEW.service_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `service_contributors` (`contributor_id`, `service_id`) VALUES (LAST_INSERT_ID(), NEW.service_id);
+    END IF;
 END$$
 
 -- Service contributors (UPDATE)
 CREATE TRIGGER `trg_service_after_update` AFTER UPDATE ON `services`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `service_contributors` (`contributor_id`, `service_id`) VALUES (LAST_INSERT_ID(), NEW.service_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `service_contributors` (`contributor_id`, `service_id`) VALUES (LAST_INSERT_ID(), NEW.service_id);
+    END IF;
 END$$
 
 -- Finding contributors (INSERT)
 CREATE TRIGGER `trg_finding_after_insert` AFTER INSERT ON `findings`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `finding_contributors` (`contributor_id`, `finding_id`) VALUES (LAST_INSERT_ID(), NEW.finding_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `finding_contributors` (`contributor_id`, `finding_id`) VALUES (LAST_INSERT_ID(), NEW.finding_id);
+    END IF;
 END$$
 
 -- Finding contributors (UPDATE)
 CREATE TRIGGER `trg_finding_after_update` AFTER UPDATE ON `findings`
 FOR EACH ROW BEGIN
-    INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
-    INSERT INTO `finding_contributors` (`contributor_id`, `finding_id`) VALUES (LAST_INSERT_ID(), NEW.finding_id);
+    IF @current_user_id IS NOT NULL THEN
+        INSERT INTO `contributors` (`contributor_type`, `user_id`) VALUES ('PENTESTER', @current_user_id);
+        INSERT INTO `finding_contributors` (`contributor_id`, `finding_id`) VALUES (LAST_INSERT_ID(), NEW.finding_id);
+    END IF;
 END$$
 
 -- Scan finished_at on terminal status change

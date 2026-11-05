@@ -59,17 +59,20 @@ All engagement endpoints require authentication and engagement access.
 `GET/POST/GET/PUT/DELETE /api/engagements/:engagementId/targets[/:targetId]`
 - **Auth required**: Pentester or higher
 - **Create**: Requires `ip_type`, `ip_address`; optional `domain_name`, `hostname`, `description`, `status`, `operating_system`
+- **Response includes**: Each target has a `contributors` array with `{ contributor_type, user_id, username, scan_id, scan_type, scan_status }` entries. Pentester entries carry `username`; scan entries carry the scan metadata. Duplicate rows from trigger writes are collapsed.
 
 ## Services (nested under target → engagement)
 `GET/POST/GET/PUT/DELETE /api/engagements/:engagementId/targets/:targetId/services[/:serviceId]`
 - **Auth required**: Pentester or higher
 - **Create**: Requires `name`, `port`; optional `protocol`, `version`, `state`
+- **Response includes**: Each service has the same `contributors` array described for targets.
 
 ## Findings (nested under engagement)
 `GET/POST/GET/PUT/DELETE /api/engagements/:engagementId/findings[/:findingId]`
 - **Auth required**: Pentester or higher
 - **Create**: Requires `title`, `description`, `severity`; optional `status`, `target_ids[]`, `service_ids[]`, `references`, `cvss_vector`, `remediation`
 - **Update**: Can replace target/service links
+- **Response includes**: Each finding has the same `contributors` array described for targets. Finding details also return `targets` and `services` with their own contributors.
 - `GET /api/engagements/:engagementId/findings/open` — List OPEN / IN PROGRESS findings. Optional `?severity=CRITICAL|HIGH|MEDIUM|LOW|INFO` filter.
 
 ## Scans (nested under engagement)
