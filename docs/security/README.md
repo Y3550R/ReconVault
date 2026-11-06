@@ -18,7 +18,7 @@
 - Cookie name: `reconvault.sid` (configurable via `SESSION_NAME`)
 - `httpOnly: true` — accessible only by HTTP responses
 - `sameSite: "strict"` — prevents CSRF from other sites
-- `secure: false` by default (set to `true` in production with HTTPS)
+- `secure: false` by default (set `SESSION_SECURE=true` whenever TLS is enabled)
 - Session expiry: `SESSION_MAX_AGE` default 24 hours (86400000 ms)
 
 ### 4. Prepared Statements Only
@@ -27,12 +27,12 @@
 - `query()` and `execute()` helpers in `db.js` handle parameter binding
 
 ### 5. Session Variable for Triggers
-- Database triggers for contributor tracking require `@current_user_id` session variable
-- Application must call `setCurrentUserId(userId)` before INSERT/UPDATE on:
+- Database triggers for contributor tracking require the `@current_user_id` session variable
+- Application must set it on the **same connection** that performs the INSERT/UPDATE on:
   - `targets` table
   - `services` table
   - `findings` table
-- Must call `clearCurrentUserId()` after the operation
+- Request handlers do this inside `db.transaction()` with `SET @current_user_id = ?` and reset it to `NULL` before the connection is released
 - Forgetting this will result in contributor records not being created
 
 ### 6. Hard Delete Only
@@ -65,6 +65,34 @@
 - Error messages don't leak sensitive information in production
 - Stack traces only visible in development mode (`NODE_ENV !== "production"`)
 - AppError class centralizes error code, message, and status code
+
+## TLS / HTTPS
+
+The HTTP server switches to HTTPS when `TLS_ENABLED=true`/`1`:
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `TLS_ENABLED` | `false` | Serve HTTPS instead of HTTP |
+| `TLS_KEY_PATH` | `/etc/ssl/reconvault/server.key` | Private key (must be readable by the app user) |
+| `TLS_CERT_PATH` | `/etc/ssl/reconvault/server.crt` | Certificate/chain |
+| `TLS_CA_PATH` | unset | Optional CA bundle |
+
+Also set `SESSION_SECURE=true` so the session cookie is only sent over HTTPS, and set `APP_URL` to the matching `https://` base URL.
+
+Generate a development certificate (self-signed, with matching SAN entries):
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -days 825 \
+  -keyout server.key -out server.crt \
+  -subj "/CN=reconvault.sec" \
+  -addext "subjectAltName=DNS:reconvault.sec,DNS:localhost,IP:127.0.0.1"
+```
+
+Notes:
+- The app exits with an explicit error if TLS is enabled and the key/cert cannot be read.
+- `runServer_test.sh` health-checks with `https://` and `curl -k` when TLS is enabled.
+- `tests/backend_test.js` disables certificate verification for local self-signed certs.
+- Binding ports below 1024 (including 443) requires root or `CAP_NET_BIND_SERVICE`; otherwise run on a high port and put a reverse proxy in front.
 
 ## Potential Vulnerabilities (Known Prototype Limitations)
 

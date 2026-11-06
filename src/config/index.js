@@ -54,6 +54,13 @@ export const config = {
     path: process.env.NMAP_PATH,
   },
 
+  tls: {
+    enabled: ["true", "1"].includes((process.env.TLS_ENABLED || "").toLowerCase()),
+    keyPath: process.env.TLS_KEY_PATH || "/etc/ssl/reconvault/server.key",
+    certPath: process.env.TLS_CERT_PATH || "/etc/ssl/reconvault/server.crt",
+    caPath: process.env.TLS_CA_PATH || null,
+  },
+
   scan: {
     maxConcurrent: parseInt(process.env.MAX_CONCURRENT_SCANS, 10) || 3,
     timeoutMs: parseInt(process.env.SCAN_TIMEOUT_MS, 10) || 1800000,

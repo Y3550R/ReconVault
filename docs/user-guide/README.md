@@ -6,7 +6,7 @@ ReconVault is a reconnaissance asset manager for offensive security teams. It he
 ## Getting Started
 
 ### Logging In
-1. Navigate to the application URL (default: `http://127.0.0.1:3000`)
+1. Navigate to the application URL (default: `http://127.0.0.1:3000`, or `https://<HOST>:<PORT>` when TLS is enabled)
 2. Click "Login" or go to `/api/auth/login`
 3. Enter your username and password
 4. Upon successful login, you'll be redirected or see a success response
@@ -166,6 +166,7 @@ For programmatic access, the API follows REST conventions:
 ```
 http://127.0.0.1:3000/api
 ```
+Use the matching `https://` base URL when `TLS_ENABLED=true`.
 
 ### Authentication
 - Use session cookie `reconvault.sid` set during login

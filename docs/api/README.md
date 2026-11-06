@@ -1,7 +1,7 @@
 # API Documentation
 
 ## Base URL
-`http://127.0.0.1:3000/api`
+`http://127.0.0.1:3000/api` (default). When `TLS_ENABLED=true`, use the matching `https://` URL.
 Hostname and port is editable
 
 ## Authentication

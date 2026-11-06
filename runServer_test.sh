@@ -34,6 +34,20 @@ MARIADB_LOG="/tmp/mariadb-$(date +%Y-%m-%d-%H%M%S).log"
 MARIADB_PID_FILE="/tmp/mariadb.pid"
 APP_HOST="${HOST:-127.0.0.1}"
 APP_PORT="${PORT:-3000}"
+APP_SCHEME="http"
+if [[ "${TLS_ENABLED:-false}" == "true" || "${TLS_ENABLED:-false}" == "1" ]]; then
+  APP_SCHEME="https"
+fi
+APP_TLS_KEY="${TLS_KEY_PATH:-/etc/ssl/reconvault/server.key}"
+APP_TLS_CERT="${TLS_CERT_PATH:-/etc/ssl/reconvault/server.crt}"
+
+# Omit the port only when it matches the scheme's default.
+if [[ ( "$APP_SCHEME" == "https" && "$APP_PORT" == "443" ) || ( "$APP_SCHEME" == "http" && "$APP_PORT" == "80" ) ]]; then
+  APP_URL_DISPLAY="${APP_SCHEME}://${APP_HOST}"
+else
+  APP_URL_DISPLAY="${APP_SCHEME}://${APP_HOST}:${APP_PORT}"
+fi
+
 APP_PID_FILE="/tmp/reconvault.pid"
 
 # Colors
@@ -246,6 +260,19 @@ start_app() {
     exit 1
   fi
 
+  if [[ "$APP_SCHEME" == "https" ]]; then
+    if [[ ! -r "$APP_TLS_KEY" ]]; then
+      err "TLS private key is not readable: $APP_TLS_KEY"
+      err "Run as the key owner or fix TLS_KEY_PATH / permissions."
+      exit 1
+    fi
+    if [[ ! -r "$APP_TLS_CERT" ]]; then
+      err "TLS certificate is not readable: $APP_TLS_CERT"
+      err "Fix TLS_CERT_PATH or its permissions."
+      exit 1
+    fi
+  fi
+
   "$NODE_BIN" src/server.js &
   APP_PID=$!
   echo "$APP_PID" > "$APP_PID_FILE"
@@ -253,13 +280,15 @@ start_app() {
   # Wait for app
   log "Waiting for the app to become ready..."
   local retries=10
+  local curl_opts=(-s)
+  if [[ "$APP_SCHEME" == "https" ]]; then
+    # Development certificates are usually self-signed.
+    curl_opts+=(-k)
+  fi
+
   while (( retries > 0 )); do
-    if "$CURL_BIN" -s "http://${APP_HOST}:${APP_PORT}/health" >/dev/null 2>&1; then
-      if [[ "$APP_PORT" == 80 ]]; then
-        log "App ready at http://${APP_HOST}"
-      else
-        log "App ready at http://${APP_HOST}:${APP_PORT}"
-      fi
+    if "$CURL_BIN" "${curl_opts[@]}" "${APP_SCHEME}://${APP_HOST}:${APP_PORT}/health" >/dev/null 2>&1; then
+      log "App ready at ${APP_URL_DISPLAY}"
       break
     fi
     sleep 1
@@ -299,11 +328,7 @@ main() {
   start_app
 
   log "ReconVault is running!"
-  if [[ "$APP_PORT" == 80 ]]; then
-    log "  App: http://${APP_HOST}"
-  else
-    log "  App: http://${APP_HOST}:${APP_PORT}"
-  fi
+  log "  App: ${APP_URL_DISPLAY}"
   log "  DB:  $MARIADB_BIN --socket=$MARIADB_SOCKET -u root -p"
   log ""
   log "Press Ctrl+C to stop"

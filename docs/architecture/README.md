@@ -107,5 +107,6 @@ The `contributors` table uses a polymorphic pattern:
 ## Deployment
 - MariaDB runs on isolated port 3315
 - Node app runs on configured port (default 3000)
+- Set `TLS_ENABLED=true` (with `TLS_KEY_PATH`/`TLS_CERT_PATH`) to serve HTTPS; also set `SESSION_SECURE=true`
 - Environment variables via `.env` file (never committed)
 - Startup script `runServer_test.sh` handles DB initialization and app startup

@@ -1,7 +1,24 @@
 #!/usr/bin/env node
 // Integration test for backend API routes
+import "dotenv/config";
 
-const BASE_URL = process.env.APP_URL || "http://127.0.0.1:3000";
+const tlsEnabled = ["true", "1"].includes(
+  (process.env.TLS_ENABLED || "").toLowerCase()
+);
+const defaultScheme = tlsEnabled ? "https" : "http";
+const defaultHost = process.env.HOST || "127.0.0.1";
+const defaultPort = process.env.PORT || "3000";
+
+const BASE_URL =
+  process.env.APP_URL || `${defaultScheme}://${defaultHost}:${defaultPort}`;
+
+if (tlsEnabled) {
+  // Development certificates are usually self-signed.
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+  console.warn(
+    "TLS enabled: certificate verification is disabled for this local test run.\n"
+  );
+}
 
 async function runTests() {
   console.log("=== Backend API Integration Test Suite ===\n");
