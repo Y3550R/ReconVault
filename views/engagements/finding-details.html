@@ -149,6 +149,17 @@
                             </div>
 
                             <div class="col-md-6">
+                                <label for="edit-cve" class="form-label">CVE ID</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">CVE-</span>
+                                    <input id="edit-cve" class="form-control" name="cve_id" type="text"
+                                        maxlength="15" pattern="[0-9]{4}-[0-9]{4,}" placeholder="2021-44228"
+                                        title="Enter the numeric portion only, e.g. 2021-44228">
+                                </div>
+                                <div class="form-text">Optional. Enter the numeric portion only.</div>
+                            </div>
+
+                            <div class="col-12">
                                 <label for="edit-references" class="form-label">References</label>
                                 <textarea id="edit-references" class="form-control" name="references"
                                     rows="3" maxlength="2000"></textarea>

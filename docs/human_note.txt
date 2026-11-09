@@ -1,3 +1,0 @@
-Yeah this documentation is god awful since it's made by an AI that doesn't know something about something.
-
-I'll remake the docs later during the QoL phase but for now, take the docs as a grain of salt.

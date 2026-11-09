@@ -70,7 +70,8 @@ All engagement endpoints require authentication and engagement access.
 ## Findings (nested under engagement)
 `GET/POST/GET/PUT/DELETE /api/engagements/:engagementId/findings[/:findingId]`
 - **Auth required**: Pentester or higher
-- **Create**: Requires `title`, `description`, `severity`; optional `status`, `target_ids[]`, `service_ids[]`, `references`, `cvss_vector`, `remediation`
+- **Create**: Requires `title`, `description`, `severity`; optional `status`, `target_ids[]`, `service_ids[]`, `references`, `cvss_vector`, `cve_id`, `remediation`
+  - `cve_id` accepts the numeric portion only (e.g. `2021-44228`, optional `CVE-` prefix) and is stored canonically as `CVE-2021-44228`. Omit or send an empty string for no CVE.
 - **Update**: Can replace target/service links
 - **Response includes**: Each finding has the same `contributors` array described for targets. Finding details also return `targets` and `services` with their own contributors.
 - `GET /api/engagements/:engagementId/findings/open` — List OPEN / IN PROGRESS findings. Optional `?severity=CRITICAL|HIGH|MEDIUM|LOW|INFO` filter.

@@ -313,7 +313,7 @@ export const changeOrganization = asyncHandler(async (req, res) => {
   }
 
   if (!client_organization_id) {
-    await query(
+    await execute(
       `UPDATE clients
       SET client_organization_id = NULL
       WHERE user_id = ?`,
@@ -340,7 +340,7 @@ export const changeOrganization = asyncHandler(async (req, res) => {
     );
   }
 
-  await query(
+  await execute(
     `UPDATE clients
     SET client_organization_id = ?
     WHERE user_id = ?`,

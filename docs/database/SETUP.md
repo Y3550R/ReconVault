@@ -1,7 +1,7 @@
 # Database Setup Documentation
 
 ## Overview
-Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolated port 3315 with dedicated user, 19 tables, 7 triggers, 28 foreign keys, and comprehensive test suite (60/60 passing).
+Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolated port 3315 with three access roles (readonly, readwrite, admin), 19 tables, 7 triggers, 28 foreign keys, and comprehensive test suite (60/60 passing).
 
 ---
 
@@ -13,7 +13,7 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 | **Port** | 3315 (isolated from other MariaDB instances) |
 | **Data Directory** | `/tmp/mariadb-data` (ephemeral, recreated on startup) |
 | **Socket** | `/tmp/mariadb.sock` |
-| **User (For webapp)** | in `.env` |
+| **Users (for webapp)** | readonly + readwrite roles (admin is provisioning-only) |
 | **Database** | in `.env` |
 | **Charset** | utf8mb4 / utf8mb4_unicode_ci |
 
@@ -30,18 +30,22 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 
 ### `src/config/index.js`
 - Loads `.env` via dotenv
-- **Validates 7 required env vars at startup** — throws if missing
-- Required: `SESSION_SECRET`, `NMAP_PATH`, `DB_HOST`, `DB_PORT`, `DB_ROOT_PASS`, `DB_WEB_USER`, `DB_WEB_PASS`, `DB_NAME`, `DB_DEFAULT_ADMIN_USER`, `DB_DEFAULT_ADMIN_PASS`
+- **Validates required env vars at startup** — throws if missing
+- Required: `SESSION_SECRET`, `NMAP_PATH`, `DB_HOST`, `DB_PORT`, `DB_NAME`, `DB_READONLY_USER`, `DB_READONLY_PASS`, `DB_READWRITE_USER`, `DB_READWRITE_PASS`, `DB_DEFAULT_ADMIN_USER`, `DB_DEFAULT_ADMIN_PASS`
+- `DB_ADMIN_USER` / `DB_ADMIN_PASS` are **not** loaded by the app; only `runServer_test.sh` uses them
 - **No fallbacks for required values**
 - Optional fallbacks only: `SESSION_NAME`, `SESSION_MAX_AGE`, `connectionLimit`, argon2 params
 
 ### `src/db.js`
-- `createPool(config)` — strict, no defaults, throws on missing config fields
-- Helpers: `query()`, `execute()`, `getConnection()`, `transaction()`, `close()`
-- `paginate(baseQuery, params, page, limit)` — offset pagination with count
+- `createPools(config)` — creates the readonly and readwrite pools; throws on missing config fields
+- `query()` → readonly pool; `execute()` / `transaction()` / `getConnection()` → readwrite pool
+- `queryReadwrite()` → readwrite pool for metadata visibility (e.g. `SHOW TRIGGERS`); the readwrite role still has no DDL rights
+- `callProcedure()` → readonly pool (stored procedures are read-only)
+- Helpers: `getReadonlyPool()`, `getReadwritePool()`, `close()`
+- `paginate(baseQuery, params, page, limit)` — offset pagination with count (readonly)
 - `buildWhere(filters, prefix)` — dynamic WHERE clauses
 - `buildOrderBy(sort, allowedFields)` — safe ORDER BY
-- `setCurrentUserId(userId)` / `clearCurrentUserId()` — for trigger session variable
+- `setCurrentUserId(userId)` / `clearCurrentUserId()` — pin a readwrite connection and set the trigger session variable (scripts/tests only; request handlers use `transaction()`)
 
 ### `tests/db_test.js` (60 tests)
 | Category | Tests |
@@ -67,7 +71,9 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 ### Features
 - Starts MariaDB on port 3315 with isolated data dir
 - Initializes data dir if missing (`mariadb-install-db`)
-- Creates/grants `reconvault` user
+- Creates the `readonly`, `readwrite`, and `admin` MariaDB users with least-privilege grants
+- Applies `database/schema.sql` as the admin role
+- Seeds the initial webapp administrator using the admin role
 - Starts Node app (`src/server.js`)
 - Health checks for both DB and app
 - **Full cleanup on exit** (Ctrl+C, SIGTERM, errors)
@@ -96,11 +102,24 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 - `DB_HOST` — database host
 - `DB_PORT` — database port
 - `DB_NAME` — database name
-- `DB_ROOT_PASS` — database root password
-- `DB_WEB_USER` — database webapp username
-- `DB_WEB_PASS` — database webapp password
+- `DB_READONLY_USER` / `DB_READONLY_PASS` — read-only database role
+- `DB_READWRITE_USER` / `DB_READWRITE_PASS` — read-write database role
 - `DB_DEFAULT_ADMIN_USER` — webapp admin username
 - `DB_DEFAULT_ADMIN_PASS` — webapp admin password
+
+**Provisioning-only (used by `runServer_test.sh`, not loaded by the app):**
+- `DB_ROOT_PASS` — MariaDB root password
+- `DB_ADMIN_USER` / `DB_ADMIN_PASS` — database admin role used for schema/seed
+
+**Database role grants:**
+
+| Role | Grants | Used by |
+|---|---|---|
+| `readonly` | `SELECT`, `EXECUTE` | `query()`, `callProcedure()` |
+| `readwrite` | `SELECT`, `INSERT`, `UPDATE`, `DELETE`, `EXECUTE` | `execute()`, `transaction()`, session store |
+| `admin` | `ALL PRIVILEGES` on `DB_NAME` | schema provisioning and admin seeding only |
+
+The running app never reads `DB_ADMIN_USER` / `DB_ADMIN_PASS`.
 
 **Optional with defaults:**
 - `HOST` — app host (default: 127.0.0.1)
@@ -125,7 +144,7 @@ Complete database foundation for ReconVault prototype. MariaDB 13.0.2 on isolate
 
 ## Security Conventions
 
-1. **Dedicated DB user** — e.g. `reconvault` (not root)
+1. **Least-privilege DB roles** — app uses `readonly` for reads and `readwrite` for writes; `admin` is provisioning-only
 2. **No fallback defaults** for secrets/paths in code
 3. **`.env` in `.gitignore`** — never committed
 4. **Prepared statements only** — `pool.execute(sql, params)`
@@ -150,7 +169,7 @@ npm test                 # run 60 db tests (tests/db_test.js)
 
 - **Overlapping roles** — one user can be Admin + Pentester + Client
 - **Client org nullable** — clients without org see empty dashboard
-- **Contributor triggers** — app MUST call `setCurrentUserId(userId)` before INSERT/UPDATE on targets/services/findings
+- **Contributor triggers** — request handlers set `@current_user_id` on the transaction connection before INSERT/UPDATE on targets/services/findings; scripts can use `setCurrentUserId()`
 - **Scan state machine** — `READY → RUNNING → COMPLETED/FAILED/CANCELLED` (linear, no back-transitions)
 - **Scans only run when engagement = ACTIVE** — enforced in app middleware
 - **nmap binary required** — path configured in `.env`

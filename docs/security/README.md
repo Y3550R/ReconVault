@@ -2,14 +2,16 @@
 
 ## Security Conventions
 
-### 1. Dedicated Database User
-- Application connects as web user (not root)
-- `.env` contains `DB_WEB_USER=webuser` and `DB_WEB_PASS`
-- Password stored in environment, never in code
-- User has specific grants on `DB_NAME` database only
+### 1. Least-Privilege Database Roles
+- The application connects with two roles, never as root or admin
+- `.env` contains `DB_READONLY_USER` / `DB_READONLY_PASS` and `DB_READWRITE_USER` / `DB_READWRITE_PASS`
+- `query()` and read-only stored procedures use the **readonly** role (`SELECT`, `EXECUTE`)
+- `execute()`, `transaction()`, and the session store use the **readwrite** role (`SELECT`, `INSERT`, `UPDATE`, `DELETE`, `EXECUTE`)
+- The **admin** role (`DB_ADMIN_USER` / `DB_ADMIN_PASS`) is used only by the provisioning script to apply the schema and seed the webapp admin; `src/config/index.js` deletes the root/admin variables from `process.env` and never reads them into runtime config
+- Passwords are stored in the environment, never in code, and each role has grants on `DB_NAME` only
 
 ### 2. No Secret Fallbacks
-- Code validates 7 required env vars at startup and throws if missing
+- Code validates required env vars at startup and throws if missing
 - No default values for secrets (SESSION_SECRET, DB passwords)
 - Optional vars have sensible defaults only
 

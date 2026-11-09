@@ -106,6 +106,30 @@ export function sanitizeString(str, maxLength = 1000) {
   return str.trim().slice(0, maxLength);
 }
 
+/**
+ * Parse a CVE reference. Users enter the numeric portion (e.g. "2021-44228");
+ * the "CVE-" prefix is optional and the canonical form is returned.
+ *
+ * @returns {{ value: string|null, valid: boolean }}
+ */
+export function parseCVEId(input) {
+  if (input === undefined || input === null) {
+    return { value: null, valid: true };
+  }
+
+  const trimmed = String(input).trim();
+  if (trimmed === "") {
+    return { value: null, valid: true };
+  }
+
+  const match = trimmed.match(/^(?:CVE-)?(\d{4})-(\d{4,})$/i);
+  if (!match) {
+    return { value: null, valid: false };
+  }
+
+  return { value: `CVE-${match[1]}-${match[2]}`, valid: true };
+}
+
 export function parseSort(sort, allowedFields = []) {
   if (!sort) return null;
   const [field, direction] = sort.split(":");

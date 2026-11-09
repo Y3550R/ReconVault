@@ -99,6 +99,17 @@
                                 </div>
 
                                 <div class="col-md-6">
+                                    <label for="finding-cve" class="form-label">CVE ID</label>
+                                    <div class="input-group">
+                                        <span class="input-group-text">CVE-</span>
+                                        <input id="finding-cve" name="cve_id" class="form-control" type="text"
+                                            maxlength="15" pattern="[0-9]{4}-[0-9]{4,}" placeholder="2021-44228"
+                                            title="Enter the numeric portion only, e.g. 2021-44228">
+                                    </div>
+                                    <div class="form-text">Optional. Enter the numeric portion only.</div>
+                                </div>
+
+                                <div class="col-12">
                                     <label for="finding-references" class="form-label">References</label>
                                     <textarea id="finding-references" name="references" class="form-control" rows="3"
                                         maxlength="2000" placeholder="URLs or reference identifiers"></textarea>

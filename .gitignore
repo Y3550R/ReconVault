@@ -22,6 +22,7 @@ logs/
 *.log
 
 # Testing
+tests/
 coverage/
 .nyc_output/
 

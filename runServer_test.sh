@@ -191,27 +191,46 @@ start_mariadb() {
       exit 1
     }
 
-  log "Configuring database..."
+  log "Configuring database roles..."
   runuser -u "$runner" -- "$MARIADB_BIN" \
     --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" \
     -e "
       CREATE DATABASE IF NOT EXISTS ${DB_NAME}
         CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-      CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'%'
-        IDENTIFIED BY '${DB_WEB_PASS}';
-      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'%';
-      CREATE USER IF NOT EXISTS '${DB_WEB_USER}'@'localhost'
-        IDENTIFIED BY '${DB_WEB_PASS}';
-      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_WEB_USER}'@'localhost';
+
+      -- Read-only role: SELECT + EXECUTE (stored procedures are read-only).
+      CREATE USER IF NOT EXISTS '${DB_READONLY_USER}'@'%'
+        IDENTIFIED BY '${DB_READONLY_PASS}';
+      GRANT SELECT, EXECUTE ON ${DB_NAME}.* TO '${DB_READONLY_USER}'@'%';
+      CREATE USER IF NOT EXISTS '${DB_READONLY_USER}'@'localhost'
+        IDENTIFIED BY '${DB_READONLY_PASS}';
+      GRANT SELECT, EXECUTE ON ${DB_NAME}.* TO '${DB_READONLY_USER}'@'localhost';
+
+      -- Read-write role: regular application writes + sessions.
+      CREATE USER IF NOT EXISTS '${DB_READWRITE_USER}'@'%'
+        IDENTIFIED BY '${DB_READWRITE_PASS}';
+      GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON ${DB_NAME}.* TO '${DB_READWRITE_USER}'@'%';
+      CREATE USER IF NOT EXISTS '${DB_READWRITE_USER}'@'localhost'
+        IDENTIFIED BY '${DB_READWRITE_PASS}';
+      GRANT SELECT, INSERT, UPDATE, DELETE, EXECUTE ON ${DB_NAME}.* TO '${DB_READWRITE_USER}'@'localhost';
+
+      -- Admin role: provisioning/schema only. The app never loads these.
+      CREATE USER IF NOT EXISTS '${DB_ADMIN_USER}'@'%'
+        IDENTIFIED BY '${DB_ADMIN_PASS}';
+      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_ADMIN_USER}'@'%';
+      CREATE USER IF NOT EXISTS '${DB_ADMIN_USER}'@'localhost'
+        IDENTIFIED BY '${DB_ADMIN_PASS}';
+      GRANT ALL PRIVILEGES ON ${DB_NAME}.* TO '${DB_ADMIN_USER}'@'localhost';
+
       FLUSH PRIVILEGES;
     " >/dev/null 2>&1 || {
       err "Failed to configure database"
       exit 1
     }
 
-  log "Running database schema..."
+  log "Running database schema as admin role..."
   runuser -u "$runner" -- "$MARIADB_BIN" \
-    --socket="$MARIADB_SOCKET" -u root -p"$DB_ROOT_PASS" \
+    --socket="$MARIADB_SOCKET" -u "$DB_ADMIN_USER" -p"$DB_ADMIN_PASS" \
     -D "$DB_NAME" < database/schema.sql >/dev/null 2>&1 || {
       err "Failed to apply database schema"
       exit 1
@@ -227,24 +246,41 @@ seed_admin() {
   # Wait a moment for the app to be ready
   sleep 2
   
-  # Use Node to seed the admin user via the database
+  # Use Node to seed the webapp admin user via the database admin role.
+  # This is provisioning only; the running application never sees these creds.
   "$NODE_BIN" -e "
-    import { createPool, execute, close } from './src/db.js';
-    import { config } from './src/config/index.js';
-    import { hashPassword } from './src/services/password.js';
-    
-    createPool(config.database);
-    
+    // Capture provisioning credentials before importing the app config
+    // (src/config/index.js deliberately removes them from process.env).
+    const dbHost = process.env.DB_HOST;
+    const dbPort = Number(process.env.DB_PORT);
+    const dbName = process.env.DB_NAME;
+    const dbAdminUser = process.env.DB_ADMIN_USER;
+    const dbAdminPass = process.env.DB_ADMIN_PASS;
     const adminUser = process.env.DB_DEFAULT_ADMIN_USER;
     const adminPass = process.env.DB_DEFAULT_ADMIN_PASS;
+
+    const { default: mysql } = await import('mysql2/promise');
+    const { hashPassword } = await import('./src/services/password.js');
+
+    const connection = await mysql.createConnection({
+      host: dbHost,
+      port: dbPort,
+      user: dbAdminUser,
+      password: dbAdminPass,
+      database: dbName,
+    });
+
     const hash = await hashPassword(adminPass);
-    await execute(
+    await connection.execute(
       'INSERT IGNORE INTO users (username, password_hash, status) VALUES (?, ?, ?)',
       [adminUser, hash, 'ACTIVE']
     );
-    await execute('INSERT IGNORE INTO administrators (user_id) SELECT user_id FROM users WHERE username = ?', [adminUser]);
+    await connection.execute(
+      'INSERT IGNORE INTO administrators (user_id) SELECT user_id FROM users WHERE username = ?',
+      [adminUser]
+    );
     console.log('Admin user seeded');
-    await close();
+    await connection.end();
   "
   
   log "Admin user seeded"
@@ -273,7 +309,12 @@ start_app() {
     fi
   fi
 
-  "$NODE_BIN" src/server.js &
+  # Launch the app in a subshell that drops provisioning credentials, so the
+  # running process cannot read the root/admin database passwords.
+  (
+    unset DB_ROOT_PASS DB_ADMIN_USER DB_ADMIN_PASS
+    exec "$NODE_BIN" src/server.js
+  ) &
   APP_PID=$!
   echo "$APP_PID" > "$APP_PID_FILE"
 
@@ -316,11 +357,15 @@ main() {
   # Verify required env vars
   require_env_vars \
     DB_ROOT_PASS \
-    DB_WEB_USER \
-    DB_WEB_PASS \
+    DB_NAME \
+    DB_READONLY_USER \
+    DB_READONLY_PASS \
+    DB_READWRITE_USER \
+    DB_READWRITE_PASS \
+    DB_ADMIN_USER \
+    DB_ADMIN_PASS \
     DB_DEFAULT_ADMIN_USER \
-    DB_DEFAULT_ADMIN_PASS \
-    DB_NAME
+    DB_DEFAULT_ADMIN_PASS
 
   start_mariadb
   seed_admin

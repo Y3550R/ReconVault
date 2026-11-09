@@ -35,7 +35,7 @@
 
 | Table | Columns | Constraints |
 |-------|---------|-------------|
-| `findings` | `finding_id` (PK, AI), `engagement_id` (FK), `title`, `description`, `severity` (CRITICAL/HIGH/MEDIUM/LOW/INFO), `status` (OPEN/IN PROGRESS/RESOLVED/ACCEPTED), `discovered_at`, `resolved_at`, `creator_user_id` (FK), `references`, `cvss_vector`, `remediation`, `created_at`, `updated_at` | CASCADE (engagement), RESTRICT (creator), indexes on engagement_id, severity, status |
+| `findings` | `finding_id` (PK, AI), `engagement_id` (FK), `title`, `description`, `severity` (CRITICAL/HIGH/MEDIUM/LOW/INFO), `status` (OPEN/IN PROGRESS/RESOLVED/ACCEPTED), `discovered_at`, `resolved_at`, `creator_user_id` (FK), `references`, `cvss_vector`, `cve_id`, `remediation`, `created_at`, `updated_at` | CASCADE (engagement), RESTRICT (creator), indexes on engagement_id, severity, status, cve_id |
 | `finding_targets` | `finding_id` (FK), `target_id` (FK) | Composite PK, CASCADE |
 | `finding_services` | `finding_id` (FK), `service_id` (FK) | Composite PK, CASCADE |
 
@@ -137,6 +137,7 @@ SET @current_user_id = <user_id>;
 | findings | idx_findings_engagement | engagement_id |
 | findings | idx_findings_severity | severity |
 | findings | idx_findings_status | status |
+| findings | idx_findings_cve | cve_id |
 | contributors | idx_contributors_type_user | contributor_type, user_id |
 | contributors | idx_contributors_type_scan | contributor_type, scan_id |
 | scans | idx_scans_engagement | engagement_id |

@@ -170,6 +170,7 @@ CREATE TABLE `findings` (
     `creator_user_id` INT NOT NULL,
     `references` TEXT,
     `cvss_vector` VARCHAR(100),
+    `cve_id` VARCHAR(20),
     `remediation` TEXT,
     `created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -178,7 +179,8 @@ CREATE TABLE `findings` (
     FOREIGN KEY (`creator_user_id`) REFERENCES `users`(`user_id`) ON DELETE RESTRICT,
     INDEX `idx_findings_engagement` (`engagement_id`),
     INDEX `idx_findings_severity` (`severity`),
-    INDEX `idx_findings_status` (`status`)
+    INDEX `idx_findings_status` (`status`),
+    INDEX `idx_findings_cve` (`cve_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `finding_targets` (

@@ -1,6 +1,6 @@
 import { query, execute, transaction, callProcedure } from "../db.js";
 import { AppError, asyncHandler } from "../middleware/errorHandler.js";
-import { validateEnum, sanitizeString } from "../utils/validation.js";
+import { validateEnum, sanitizeString, parseCVEId } from "../utils/validation.js";
 import { attachContributors } from "../services/contributors.js";
 
 export const listFindings = asyncHandler(async (req, res) => {
@@ -70,7 +70,7 @@ export const getFinding = asyncHandler(async (req, res) => {
 
 export const createFinding = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
-  const { title, description, severity, status, target_ids, service_ids, references, cvss_vector, remediation } = req.body;
+  const { title, description, severity, status, target_ids, service_ids, references, cvss_vector, cve_id, remediation } = req.body;
 
   if (!title || !description || !severity) {
     throw new AppError("title, description, and severity required", 400, "VALIDATION_ERROR");
@@ -82,6 +82,15 @@ export const createFinding = asyncHandler(async (req, res) => {
 
   if (status && !validateEnum(status, ["OPEN", "IN PROGRESS", "RESOLVED", "ACCEPTED"])) {
     throw new AppError("Invalid status", 400, "VALIDATION_ERROR");
+  }
+
+  const cve = parseCVEId(cve_id);
+  if (!cve.valid) {
+    throw new AppError(
+      "Invalid CVE ID. Enter the numeric portion, e.g. 2021-44228",
+      400,
+      "VALIDATION_ERROR"
+    );
   }
 
   if (!target_ids?.length && !service_ids?.length) {
@@ -96,8 +105,8 @@ export const createFinding = asyncHandler(async (req, res) => {
 
     try {
       const [result] = await conn.execute(
-        `INSERT INTO findings (engagement_id, title, description, severity, status, creator_user_id, \`references\`, cvss_vector, remediation)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        `INSERT INTO findings (engagement_id, title, description, severity, status, creator_user_id, \`references\`, cvss_vector, cve_id, remediation)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           engagementId,
           sanitizeString(title, 200),
@@ -107,6 +116,7 @@ export const createFinding = asyncHandler(async (req, res) => {
           req.user.user_id,
           sanitizeString(references, 2000),
           sanitizeString(cvss_vector, 100),
+          cve.value,
           sanitizeString(remediation, 5000),
         ]
       );
@@ -139,7 +149,7 @@ export const createFinding = asyncHandler(async (req, res) => {
 export const updateFinding = asyncHandler(async (req, res) => {
   const engagementId = parseInt(req.params.engagementId, 10);
   const findingId = parseInt(req.params.findingId, 10);
-  const { title, description, severity, status, target_ids, service_ids, references, cvss_vector, remediation, resolved_at } = req.body;
+  const { title, description, severity, status, target_ids, service_ids, references, cvss_vector, cve_id, remediation, resolved_at } = req.body;
 
   const finding = await query("SELECT * FROM findings WHERE finding_id = ? AND engagement_id = ?", [findingId, engagementId]);
   if (!finding.length) {
@@ -158,12 +168,21 @@ export const updateFinding = asyncHandler(async (req, res) => {
     throw new AppError("At least one target or service required", 400, "VALIDATION_ERROR");
   }
 
+  const cve = parseCVEId(cve_id);
+  if (!cve.valid) {
+    throw new AppError(
+      "Invalid CVE ID. Enter the numeric portion, e.g. 2021-44228",
+      400,
+      "VALIDATION_ERROR"
+    );
+  }
+
   await transaction(async (conn) => {
     await conn.execute("SET @current_user_id = ?", [req.user.user_id]);
 
     try {
       await conn.execute(
-        `UPDATE findings SET title = ?, description = ?, severity = ?, status = ?, \`references\` = ?, cvss_vector = ?, remediation = ?, resolved_at = ?, updated_at = NOW()
+        `UPDATE findings SET title = ?, description = ?, severity = ?, status = ?, \`references\` = ?, cvss_vector = ?, cve_id = ?, remediation = ?, resolved_at = ?, updated_at = NOW()
          WHERE finding_id = ?`,
         [
           sanitizeString(title, 200),
@@ -172,6 +191,7 @@ export const updateFinding = asyncHandler(async (req, res) => {
           status || finding[0].status,
           sanitizeString(references, 2000),
           sanitizeString(cvss_vector, 100),
+          cve.value,
           sanitizeString(remediation, 5000),
           resolved_at || null,
           findingId,

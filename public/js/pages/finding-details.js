@@ -82,6 +82,10 @@ function formatDate(value) {
     return escapeHtml(date.toLocaleString());
 }
 
+function cveNumber(value) {
+    return String(value ?? "").replace(/^CVE-/i, "");
+}
+
 function showAlert(message, type = "info") {
     el.alert.className = `alert alert-${type}`;
     el.alert.textContent = message;
@@ -115,6 +119,7 @@ function renderOverview() {
         ["Severity", finding.severity],
         ["Status", finding.status],
         ["CVSS vector", finding.cvss_vector],
+        ["CVE ID", finding.cve_id],
         ["Discovered", formatDate(finding.discovered_at)],
         ["Resolved", formatDate(finding.resolved_at)],
         ["Created", formatDate(finding.created_at)],
@@ -357,6 +362,7 @@ async function openEditForm() {
         el.editForm.elements.severity.value = finding.severity ?? "MEDIUM";
         el.editForm.elements.status.value = finding.status ?? "OPEN";
         el.editForm.elements.cvss_vector.value = finding.cvss_vector ?? "";
+        el.editForm.elements.cve_id.value = cveNumber(finding.cve_id);
         el.editForm.elements.references.value = finding.references ?? "";
         el.editForm.elements.remediation.value = finding.remediation ?? "";
 
@@ -397,6 +403,7 @@ async function saveEdit(event) {
         severity: formData.get("severity"),
         status: formData.get("status"),
         cvss_vector: String(formData.get("cvss_vector") ?? "").trim(),
+        cve_id: String(formData.get("cve_id") ?? "").trim(),
         references: String(formData.get("references") ?? "").trim(),
         remediation: String(formData.get("remediation") ?? "").trim(),
         target_ids: targetIds,

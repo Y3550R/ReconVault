@@ -66,6 +66,10 @@ function formatDate(value) {
     return escapeHtml(date.toLocaleString());
 }
 
+function cveNumber(value) {
+    return String(value ?? "").replace(/^CVE-/i, "");
+}
+
 function showAlert(message, type = "info") {
     elements.alert.className = `alert alert-${type}`;
     elements.alert.textContent = message;
@@ -118,6 +122,7 @@ function renderFindings() {
     <tr>
     <th scope="col">Severity</th>
     <th scope="col">Finding</th>
+    <th scope="col">CVE</th>
     <th scope="col">Status</th>
     <th scope="col">Contributors</th>
     <th scope="col">Discovered</th>
@@ -142,6 +147,7 @@ function renderFindings() {
         )}${String(finding.description ?? "").length > 140 ? "…" : ""}
         </div>
         </td>
+        <td>${displayValue(finding.cve_id)}</td>
         <td>${statusBadge(finding.status)}</td>
         <td class="cell-wrap">${renderContributors(finding.contributors)}</td>
         <td>${formatDate(finding.discovered_at)}</td>
@@ -343,6 +349,7 @@ function openEditForm(finding) {
     elements.form.elements.severity.value = finding.severity ?? "MEDIUM";
     elements.form.elements.status.value = finding.status ?? "OPEN";
     elements.form.elements.cvss_vector.value = finding.cvss_vector ?? "";
+    elements.form.elements.cve_id.value = cveNumber(finding.cve_id);
     elements.form.elements.references.value = finding.references ?? "";
     elements.form.elements.remediation.value = finding.remediation ?? "";
 
@@ -392,6 +399,7 @@ async function saveFinding(event) {
         severity: formData.get("severity"),
         status: formData.get("status"),
         cvss_vector: String(formData.get("cvss_vector") ?? "").trim(),
+        cve_id: String(formData.get("cve_id") ?? "").trim(),
         references: String(formData.get("references") ?? "").trim(),
         remediation: String(formData.get("remediation") ?? "").trim(),
         target_ids: targetIds,

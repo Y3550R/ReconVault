@@ -3,7 +3,7 @@ import session from "express-session";
 import MySQLStoreFactory from "express-mysql-session";
 import mysql from "mysql2";
 import { config } from "./config/index.js";
-import { createPool, getPool } from "./db.js";
+import { createPools, getReadwritePool } from "./db.js";
 import { errorHandler, notFoundHandler } from "./middleware/errorHandler.js";
 import { authMiddleware } from "./middleware/auth.js";
 import authRoutes from "./routes/auth.js";
@@ -13,15 +13,16 @@ import adminUserRoutes from "./routes/admin/users.js";
 import adminOrgRoutes from "./routes/admin/organizations.js";
 import pageRoutes from "./routes/pages.js";
 
-createPool(config.database);
-const pool = getPool();
+createPools(config.database);
+const pool = getReadwritePool();
 
-// Create a separate callback-style pool for session store
+// Create a separate callback-style pool for session store. Sessions are
+// written, so they must use the readwrite role.
 const sessionPool = mysql.createPool({
   host: config.database.host,
   port: config.database.port,
-  user: config.database.user,
-  password: config.database.password,
+  user: config.database.readwrite.user,
+  password: config.database.readwrite.password,
   database: config.database.database,
   connectionLimit: 10,
   waitForConnections: true,
@@ -34,7 +35,9 @@ const sessionStore = new MySQLStore({
   clearExpired: true,
   checkExpirationInterval: 900000,
   expiration: config.session.maxAge,
-  createDatabaseTable: true,
+  // The sessions table is created by database/schema.sql as the admin role.
+  // The application's readwrite user has no CREATE privilege.
+  createDatabaseTable: false,
   endConnectionOnClose: true,
   charset: "utf8mb4_bin",
   schema: {

@@ -98,6 +98,7 @@ Depending on your assigned role, you'll have different capabilities:
    - **Status**: OPEN | IN PROGRESS | RESOLVED | ACCEPTED (default: OPEN)
    - **References**: Additional references or URLs
    - **CVSS Vector**: CVSS vector string
+   - **CVE ID**: Optional numeric portion, e.g. `2021-44228` (entered after the fixed `CVE-` prefix)
    - **Remediation**: Remediation steps
 4. Associate targets and/or services:
    - Select from existing targets/services in the engagement

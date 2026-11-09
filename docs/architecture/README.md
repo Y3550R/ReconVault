@@ -97,6 +97,12 @@ The `contributors` table uses a polymorphic pattern:
 - Application code reflects the schema structure
 - No migration tool — schema changes applied manually to `schema.sql`
 
+### 8. Least-Privilege Database Access
+- Three MariaDB roles: `readonly`, `readwrite`, `admin`
+- `query()` / `callProcedure()` use the readonly pool
+- `execute()` / `transaction()` / session store use the readwrite pool
+- Admin credentials are provisioning-only and never loaded by the app
+
 ## API Design
 - RESTful endpoints under `/api`
 - Resource nesting reflects database hierarchy

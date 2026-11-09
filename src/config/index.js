@@ -2,15 +2,22 @@ import dotenv from "dotenv";
 
 dotenv.config();
 
+// The application must never hold provisioning credentials, even if they are
+// present in .env. The startup script and seed step read these directly.
+delete process.env.DB_ROOT_PASS;
+delete process.env.DB_ADMIN_USER;
+delete process.env.DB_ADMIN_PASS;
+
 const requiredEnv = [
   "SESSION_SECRET",
   "NMAP_PATH",
   "DB_HOST",
   "DB_PORT",
-  "DB_ROOT_PASS",
-  "DB_WEB_USER",
-  "DB_WEB_PASS",
   "DB_NAME",
+  "DB_READONLY_USER",
+  "DB_READONLY_PASS",
+  "DB_READWRITE_USER",
+  "DB_READWRITE_PASS",
   "DB_DEFAULT_ADMIN_USER",
   "DB_DEFAULT_ADMIN_PASS"
 ];
@@ -38,10 +45,20 @@ export const config = {
   database: {
     host: process.env.DB_HOST,
     port: parseInt(process.env.DB_PORT, 10),
-    user: process.env.DB_WEB_USER,
-    password: process.env.DB_WEB_PASS,
     database: process.env.DB_NAME,
-    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10
+    connectionLimit: parseInt(process.env.DB_CONNECTION_LIMIT, 10) || 10,
+
+    // The application only ever gets least-privilege credentials. Admin
+    // credentials (DB_ADMIN_USER / DB_ADMIN_PASS) are used by the provisioning
+    // script and are deliberately not read into runtime config.
+    readonly: {
+      user: process.env.DB_READONLY_USER,
+      password: process.env.DB_READONLY_PASS,
+    },
+    readwrite: {
+      user: process.env.DB_READWRITE_USER,
+      password: process.env.DB_READWRITE_PASS,
+    },
   },
 
   argon2: {
